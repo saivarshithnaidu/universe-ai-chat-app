@@ -23,8 +23,23 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  if (process.env.NODE_ENV === 'development' && !process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY) {
-    console.warn('Missing NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY environment variable');
+  // Validate environment variables at build/runtime
+  if (typeof window === 'undefined') {
+    const requiredEnv = [
+      'NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY',
+      'CLERK_SECRET_KEY',
+      'NEXT_PUBLIC_CLERK_SIGN_IN_URL',
+      'NEXT_PUBLIC_CLERK_SIGN_UP_URL'
+    ];
+
+    // Only check in production or if build requires it strictly. 
+    // For Vercel, we want to fail if these are missing.
+    if (process.env.NODE_ENV === 'production') {
+      const missing = requiredEnv.filter(key => !process.env[key]);
+      if (missing.length > 0) {
+        throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
+      }
+    }
   }
 
   return (
