@@ -27,9 +27,7 @@ export default function RootLayout({
   if (typeof window === 'undefined') {
     const requiredEnv = [
       'NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY',
-      'CLERK_SECRET_KEY',
-      'NEXT_PUBLIC_CLERK_SIGN_IN_URL',
-      'NEXT_PUBLIC_CLERK_SIGN_UP_URL'
+      'CLERK_SECRET_KEY'
     ];
 
     // Only check in production or if build requires it strictly. 
