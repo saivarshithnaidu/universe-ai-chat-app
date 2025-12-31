@@ -4,10 +4,30 @@ import { getModelById } from '@/lib/models';
 import { auth, currentUser } from '@clerk/nextjs/server';
 import { db } from '@/lib/db';
 
-export const maxDuration = 30;
+export const maxDuration = 120; // 2 minutes to allow sequential processing
 
 // Helper to delay execution
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+function normalizeResponse(choice: any): string {
+    if (!choice) return "";
+    // Handle various structures
+    // 1. OpenAI standard: choice.message.content
+    // 2. Direct text: choice.text (some legacy wrappers)
+    // 3. Google/Vertex raw: choice.output_text (rare via OpenRouter but possible)
+    let content = choice.message?.content || choice.text || choice.output_text || "";
+
+    if (Array.isArray(content)) {
+        // Flatten or join text parts
+        content = content
+            .filter((c: any) => c.type === 'text')
+            .map((c: any) => c.text)
+            .join('\n');
+    }
+
+    const text = typeof content === 'string' ? content : JSON.stringify(content);
+    return text ? text.trim() : "";
+}
 
 async function generateWithRetry(
     modelKey: string,
@@ -33,64 +53,89 @@ async function generateWithRetry(
         };
     });
 
+    const TIMEOUT_MS = 30000; // 30s timeout per model
+
     try {
         // Unified Pipeline
         if (model.provider === 'OpenAI') {
             // Internal OpenAI Route
-            const res = await fetch('http://localhost:3000/api/chat/openai', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    messages: validatedMessages,
-                    modelId: modelKey
-                })
-            });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error || 'OpenAI API Failed');
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
-            return {
-                id: model.id,
-                name: model.name,
-                description: model.description,
-                text: data.text,
-                status: 'success'
-            };
+            try {
+                const res = await fetch('http://localhost:3000/api/chat/openai', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        messages: validatedMessages,
+                        modelId: modelKey
+                    }),
+                    signal: controller.signal
+                });
+
+                if (!res.ok) {
+                    const data = await res.json().catch(() => ({}));
+                    throw new Error(data.error || 'OpenAI API Failed');
+                }
+
+                const data = await res.json();
+
+                return {
+                    id: model.id,
+                    name: model.name,
+                    description: model.description,
+                    text: data.text || "", // Ensure not undefined
+                    status: 'success'
+                };
+            } finally {
+                clearTimeout(timeoutId);
+            }
         }
 
         // OpenRouter Pipeline via OpenAI SDK
-        const completion = await openrouter.chat.completions.create({
+        const completionPromise = openrouter.chat.completions.create({
             model: model.modelId,
             messages: validatedMessages,
         });
 
-        const choice = completion.choices[0];
-        if (!choice || !choice.message) {
+        // Race against timeout
+        const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error("Request timed out")), TIMEOUT_MS)
+        );
+
+        const completion: any = await Promise.race([completionPromise, timeoutPromise]);
+
+        const choice = completion.choices?.[0];
+        if (!choice) {
             throw new Error("Empty response from OpenRouter");
         }
+
+        const normalizedText = normalizeResponse(choice);
 
         return {
             id: model.id,
             name: model.name,
             description: model.description,
-            text: choice.message.content || "",
+            text: normalizedText,
             status: 'success'
         };
 
     } catch (err: any) {
         // Detect 400 Bad Request / ZodError
-        const isBadRequest = err.status === 400 || (err.error && err.error.code === 400) || err.message.includes("400");
+        const isBadRequest = err.status === 400 || (err.error && err.error.code === 400) || err.message?.includes("400");
 
         if (isBadRequest) {
             console.error(`Model ${modelKey} caused 400 Bad Request. NOT RETRYING.`, err);
-            // Return a specific error structure to be handled cleanly
             throw new Error(`Conversation format error (400): ${err.message}`);
         }
 
         if (retries > 0) {
             console.warn(`Model ${modelKey} failed (Remaining retries: ${retries}). Error: ${err.message}`);
-            await delay(1000); // Wait 1s
+            // Wait a bit before retry? 
+            // We do sequential processing now, so a small sync delay here is okay or just recursion.
             return generateWithRetry(modelKey, messages, retries - 1);
         }
+
         console.error(`Model ${modelKey} failed permanently.`, err);
         throw err;
     }
@@ -107,9 +152,6 @@ import { rateLimiter } from '@/lib/rate-limit';
 
 export async function POST(req: Request) {
     // 1. Check DB Config
-    // For now we assume if Prisma is set up, we try to save.
-    // If DATABASE_URL is missing, Prisma will throw, handled by try/catch.
-
     try {
         const user = await currentUser();
         const { userId } = await auth();
@@ -130,18 +172,16 @@ export async function POST(req: Request) {
         let userRecord = null;
         try {
             userRecord = await db.getUser(userId);
-            // Ensure user exists (sync)
             if (!userRecord) {
                 await db.upsertUser(userId, user.emailAddresses[0]?.emailAddress);
             }
         } catch (e) {
             console.error("DB Error: Failed to fetch/upsert user", e);
-            // Continue execution, userRecord stays null -> isPremium=false
         }
 
         const isPremium = userRecord?.is_premium || false;
 
-        const { success, remaining } = await rateLimiter.check(userId, isPremium);
+        const { success } = await rateLimiter.check(userId, isPremium);
         if (!success) {
             return Response.json({
                 error: "Rate limit exceeded. Please try again later.",
@@ -164,8 +204,16 @@ export async function POST(req: Request) {
             return Response.json({ error: 'No models selected' }, { status: 400 });
         }
 
-        // Limit models to 4
-        const modelsToUse = selectedModels.slice(0, 4);
+        // -------------------------
+        // CONCURRENCY & MODEL LIMITS
+        // -------------------------
+        let maxModels = 4;
+        if (!isPremium) {
+            maxModels = 3; // Allow up to 3 for comparison as requested by user
+        }
+
+        const modelsToUse = selectedModels.slice(0, maxModels);
+        // -------------------------
 
         // -------------------------
         // PREMIUM TRIAL LOGIC
@@ -173,7 +221,6 @@ export async function POST(req: Request) {
         const TRIAL_LIMIT = 5;
         let isUsingPremium = false;
 
-        // Check if any selected model is premium
         for (const modelId of modelsToUse) {
             const m = getModelById(modelId);
             if (m?.isPremium) {
@@ -182,27 +229,17 @@ export async function POST(req: Request) {
             }
         }
 
-        let dbUser = null;
+        let dbUser = userRecord;
         if (isUsingPremium) {
-            // Fetch latest user state
-            try {
+            if (!dbUser) {
                 dbUser = await db.getUser(userId);
-                if (!dbUser) {
-                    // Try sync if missing
-                    await db.upsertUser(userId, user.emailAddresses[0]?.emailAddress);
-                    dbUser = await db.getUser(userId);
-                }
-            } catch (e) {
-                console.error("DB Error: Failed to refresh user state for premium check", e);
-                // We proceed. If dbUser is null, premium trial check might get skipped or handled gracefully implicitly.
-                // Lines 145+ handle "if (dbUser)" so it should be safe.
             }
 
             if (dbUser) {
-                const isPremium = dbUser.is_premium || false;
+                const userPremium = dbUser.is_premium || false;
                 const trialUsed = dbUser.premium_trial_used || 0;
 
-                if (!isPremium && trialUsed >= TRIAL_LIMIT) {
+                if (!userPremium && trialUsed >= TRIAL_LIMIT) {
                     return Response.json({
                         error: 'Premium trial exhausted',
                         code: 'TRIAL_EXHAUSTED'
@@ -212,104 +249,118 @@ export async function POST(req: Request) {
         }
         // -------------------------
 
-
-        // 1. Sync User (if not already fetched/synced above)
-        if (!dbUser) {
-            try {
-                const email = user.emailAddresses[0]?.emailAddress;
-                await db.upsertUser(userId, email);
-            } catch (e) { console.error("DB User Sync failed", e); }
-        }
-
         // 2. Handle Chat ID
         let chatId = providedChatId;
         const lastUserMessage = messages[messages.length - 1];
 
         try {
             if (!chatId) {
-                // Create new chat
                 const title = lastUserMessage.content.slice(0, 50) + (lastUserMessage.content.length > 50 ? '...' : '');
                 const newChat = await db.createChat(userId, title);
                 chatId = newChat.id;
             }
 
-            // 3. Save User Message
-            if (lastUserMessage.role === 'user') {
+            if (lastUserMessage.role === 'user' && lastUserMessage.content) {
                 await db.saveMessage(chatId, 'user', lastUserMessage.content);
             }
         } catch (dbError) {
             console.error("DB Error (non-fatal):", dbError);
         }
 
-        // Track if we successfully generated at least one PREMIUM response for accounting
+        // Track if we successfully generated at least one PREMIUM response
         let hasSuccessfulPremiumGeneration = false;
+        const results = [];
 
-        const results = await Promise.all(
-            modelsToUse.map(async (modelKey: string) => {
-                let result;
-                const modelDef = getModelById(modelKey);
-                // Use specific history for this model if available, otherwise fallback to shared messages
-                const modelMessages = (modelHistories && modelHistories[modelKey]) || messages;
-                try {
-                    result = await generateWithRetry(modelKey, modelMessages);
-                    if (result && result.status === 'success') {
-                        if (modelDef?.isPremium) {
-                            hasSuccessfulPremiumGeneration = true;
-                        }
-                    }
-                } catch (err: any) {
-                    // Try fallback
-                    const fallback = getFallbackModel(modelKey);
-                    if (fallback) {
-                        console.log(`Model ${modelKey} failed. Trying fallback ${fallback}`);
-                        try {
-                            const fallbackResult = await generateWithRetry(fallback, modelMessages, 1);
-                            // Annotate that this is a fallback
-                            result = {
-                                ...fallbackResult,
-                                note: `Fallback from ${modelKey}`
-                            };
-                            if (result && result.status === 'success') {
-                                // Fallbacks usually aren't premium (e.g. Llama), so we don't count them?
-                                // Or do we? Current fallbacks are free models.
-                                // So we safe to say no premium generation here.
-                            }
-                        } catch (fallbackErr) {
-                            // Fallback also failed
-                        }
-                    }
+        // -------------------------
+        // SEQUENTIAL EXECUTION LOOP
+        // -------------------------
+        for (const modelKey of modelsToUse) {
+            // Delay between models to avoid rate limits (except for first one)
+            if (results.length > 0) {
+                await delay(1200);
+            }
 
-                    if (!result) {
-                        // Final failure state
-                        result = {
-                            id: modelKey,
-                            name: modelDef?.name || modelKey,
-                            status: 'failed',
-                            error: 'Model busy or overloaded',
-                            reason: err.message
-                        };
+            let result;
+            const modelDef = getModelById(modelKey);
+            const modelMessages = (modelHistories && modelHistories[modelKey]) || messages;
+
+            try {
+                // Try Primary Model
+                result = await generateWithRetry(modelKey, modelMessages);
+
+                // Validate Success
+                if (result && result.status === 'success') {
+                    // Normalize ID just in case
+                    result.id = modelKey;
+
+                    if (modelDef?.isPremium) {
+                        hasSuccessfulPremiumGeneration = true;
                     }
                 }
+            } catch (err: any) {
+                console.warn(`Model ${modelKey} failed: ${err.message}`);
 
-                // 4. Save Assistant Response if success
-                if (result.status === 'success' && result.text && chatId) {
+                // Try Fallback
+                const fallbackId = getFallbackModel(modelKey);
+                if (fallbackId) {
+                    console.log(`Attempting fallback from ${modelKey} -> ${fallbackId}`);
                     try {
-                        await db.saveMessage(chatId, 'assistant', result.text, result.id);
-                    } catch (dbErr) {
-                        console.error("DB Error saving response:", dbErr);
+                        const fallbackResult = await generateWithRetry(fallbackId, modelMessages, 1);
+
+                        if (fallbackResult && fallbackResult.status === 'success') {
+                            // CRITICAL: Preserve ORIGINAL Model Identity
+                            result = {
+                                id: modelKey, // KEEP ORIGINAL ID
+                                name: modelDef?.name || modelKey,
+                                description: modelDef?.description,
+                                text: fallbackResult.text, // Copy text from fallback
+                                status: 'success',
+                                note: `Fallback from ${modelKey} to ${fallbackId}`,
+                                fallbackUsed: true,
+                                fallbackModel: fallbackId
+                            };
+                        }
+                    } catch (fallbackErr) {
+                        console.error(`Fallback ${fallbackId} also failed.`);
                     }
                 }
 
-                return result;
-            })
-        );
+                if (!result) {
+                    // Final failure state
+                    result = {
+                        id: modelKey,
+                        name: modelDef?.name || modelKey,
+                        status: 'failed',
+                        error: 'Model busy or unavailable',
+                        reason: err.message
+                    };
+                }
+            }
+
+            // 4. Save Assistant Response if success
+            // STRICT CHECK: Only save if we have valid text
+            if (result.status === 'success' && chatId) {
+                if (result.text && result.text.trim().length > 0) {
+                    try {
+                        // CRITICAL: Always use 'modelKey' (the requested ID) for DB persistence
+                        // This prevents DB corruption where a fallback ID overwrites the original column
+                        await db.saveMessage(chatId, 'assistant', result.text, modelKey);
+                    } catch (dbErr) {
+                        console.error(`DB Error saving response for ${modelKey}:`, dbErr);
+                    }
+                } else {
+                    console.warn(`Skipping DB save for model ${modelKey}: Output is empty.`);
+                }
+            }
+
+            results.push(result);
+        }
 
         // -------------------------
         // INCREMENT TRIAL USAGE
         // -------------------------
         if (isUsingPremium && hasSuccessfulPremiumGeneration && dbUser) {
             const isPremium = dbUser.is_premium || false;
-            // Only increment if user is NOT premium (and logic implies they were under limit to get here)
             if (!isPremium) {
                 try {
                     await db.incrementTrialUsage(userId);

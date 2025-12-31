@@ -1,16 +1,15 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-
 import { useState, useEffect } from 'react';
 import { AVAILABLE_MODELS, getModelById } from '@/lib/models';
 import { ModelSelector } from '@/components/ModelSelector';
 import { ChatInput } from '@/components/ChatInput';
 import { ModelResponseCard } from '@/components/ModelResponseCard';
-import { Pencil, MessageSquare, Plus, Trash2 } from 'lucide-react';
+import { ChevronLeft, Menu, MessageSquare, Pencil, Plus, Trash2 } from 'lucide-react';
 import { UserButton, SignedIn, SignedOut, SignInButton, useAuth } from "@clerk/nextjs";
 import clsx from 'clsx';
-import { db, Chat, Message } from '@/lib/db'; // Types only, since db is server-side. Wait, db is server-side. I need to define local interfaces.
+import { db, Chat, Message } from '@/lib/db'; // Types only
 
 interface ChatClient {
     id: string;
@@ -31,7 +30,6 @@ interface ChatTurn {
 
 const buildModelHistory = (modelId: string, history: ChatTurn[], currentMessage: string) => {
     const messages = [];
-    // Add previous turns
     history.forEach(turn => {
         messages.push({ role: 'user', content: turn.userMessage });
         const response = turn.responses.find(r => r.modelId === modelId);
@@ -39,7 +37,6 @@ const buildModelHistory = (modelId: string, history: ChatTurn[], currentMessage:
             messages.push({ role: 'assistant', content: response.text });
         }
     });
-    // Add current message
     messages.push({ role: 'user', content: currentMessage });
     return messages;
 };
@@ -50,6 +47,9 @@ export function ChatInterface() {
     const [selectedModelIds, setSelectedModelIds] = useState<string[]>([]);
     const [isLoaded, setIsLoaded] = useState(false);
     const [isConfigured, setIsConfigured] = useState(true);
+
+    // Sidebar State
+    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
     // User State
     const [isPremium, setIsPremium] = useState(false);
@@ -101,12 +101,13 @@ export function ChatInterface() {
             });
     }, []);
 
-    // Load selection from local storage
+    // Load selection and sidebar state
     useEffect(() => {
-        const saved = localStorage.getItem('selectedModelIds');
-        if (saved) {
+        // Models
+        const savedModels = localStorage.getItem('selectedModelIds');
+        if (savedModels) {
             try {
-                const parsed = JSON.parse(saved);
+                const parsed = JSON.parse(savedModels);
                 if (Array.isArray(parsed)) {
                     const validIds = parsed.filter(id =>
                         AVAILABLE_MODELS.some(m => m.id === id)
@@ -117,6 +118,13 @@ export function ChatInterface() {
                 console.error('Failed to load selected models:', error);
             }
         }
+
+        // Sidebar
+        const savedSidebar = localStorage.getItem('isSidebarOpen');
+        if (savedSidebar !== null) {
+            setIsSidebarOpen(savedSidebar === 'true');
+        }
+
         setIsLoaded(true);
     }, []);
 
@@ -152,8 +160,6 @@ export function ChatInterface() {
                 const turns: ChatTurn[] = [];
                 let currentTurn: ChatTurn | null = null;
 
-                // Simple grouping: Assumes User -> [Assistant, Assistant...] pattern
-                // Just robustly handling it
                 messages.forEach(msg => {
                     if (msg.role === 'user') {
                         if (currentTurn) turns.push(currentTurn);
@@ -171,6 +177,12 @@ export function ChatInterface() {
                 });
                 if (currentTurn) turns.push(currentTurn);
                 setChatHistory(turns);
+
+                // Also restore used models from this chat if possible?
+                // The prompt doesn't strictly say to switch models when opening chat, but common UX.
+                // However, we track models per message. 
+                // Let's just keep current selection to allow comparing *new* models against old history context if we wanted.
+
             } else {
                 console.error('Failed to fetch messages:', res.status);
             }
@@ -193,6 +205,12 @@ export function ChatInterface() {
             localStorage.setItem('selectedModelIds', JSON.stringify(selectedModelIds));
         }
     }, [selectedModelIds, isLoaded]);
+
+    const toggleSidebar = () => {
+        const newState = !isSidebarOpen;
+        setIsSidebarOpen(newState);
+        localStorage.setItem('isSidebarOpen', String(newState));
+    };
 
     const toggleModel = (id: string) => {
         if (selectedModelIds.includes(id)) {
@@ -240,7 +258,7 @@ export function ChatInterface() {
             setChatHistory(prev => {
                 const newHistory = [...prev];
                 const targetTurn = newHistory[turnIndex];
-                if (!targetTurn) return prev; // Guard against race condition
+                if (!targetTurn) return prev;
 
                 const responseIndex = targetTurn.responses?.findIndex((r: any) => r.modelId === modelId) ?? -1;
 
@@ -249,14 +267,13 @@ export function ChatInterface() {
                         modelId: result.id,
                         text: result.text || '',
                         status: result.status || (result.error ? 'failed' : 'success'),
-                        error: result.error,
+                        error: result.error, // Simplified cast
                         note: result.note
-                    };
+                    } as any;
                 }
                 return newHistory;
             });
 
-            // Refresh User Status (trial might have incremented)
             fetchUserStatus();
 
         } catch (e) {
@@ -301,26 +318,12 @@ export function ChatInterface() {
         }
 
         try {
-            // Build history context for API? 
-            // Currently API assumes just one message or full history. 
-            // If we want context, we should probably send previous messages.
-            // For now, let's just send the current user message to keep it simple as per earlier logic, 
-            // but the API supports `messages` array. Ideally we send context.
-            // Let's send the last few turns for context if needed, but for now just the new one is fine 
-            // as the prompt implies independent models for now. 
-            // Wait, standard chat needs context. "Chat History" implies context. 
-            // I'll stick to sending just the current message for simplicity unless requested otherwise 
-            // OR if the API is stateless. API seems to take `messages` array.
-
             const messagesPayload = [{ role: 'user', content: currentInput }];
 
-            // Build separate history for each model
             const modelHistories: Record<string, any[]> = {};
             selectedModelIds.forEach(id => {
                 modelHistories[id] = buildModelHistory(id, chatHistory, currentInput);
             });
-
-            console.log('Sending request with models:', selectedModelIds);
 
             const res = await fetch('/api/chat', {
                 method: 'POST',
@@ -335,7 +338,6 @@ export function ChatInterface() {
 
             if (!res.ok) {
                 const errorText = await res.text();
-                // Handle Trial Exhausted
                 let isTrialError = false;
                 try {
                     const errJson = JSON.parse(errorText);
@@ -345,17 +347,9 @@ export function ChatInterface() {
                 } catch (e) { }
 
                 if (isTrialError) {
-                    // Update usage to max just in case
                     setPremiumTrialUsed(TRIAL_LIMIT);
-                    // Use a more gentle UI approach? 
-                    // Requirement: "Redirect to /pricing"
-                    // We can alert and then redirect.
                     window.alert("Premium Trial Exhausted. Redirecting to Pricing...");
                     window.location.href = '/pricing';
-                    // Using location.href instead of router.push for hard redirect safety or just consistency if outside react context? 
-                    // We are in Client Component. Let's use window.location for simplicity in error handler if we don't have router in scope 
-                    // (Wait, we don't have useRouter in ChatInterface yet).
-                    // I will add useRouter.
                     return;
                 }
 
@@ -366,16 +360,25 @@ export function ChatInterface() {
             const data = await res.json();
             const results = data.results;
 
-            // Update active chat ID if it was new
             if (data.chatId && data.chatId !== activeChatId) {
                 setActiveChatId(data.chatId);
-                fetchChats(); // Refresh list to show new chat
+                fetchChats();
             }
 
             setChatHistory(prev => {
                 const updated = [...prev];
                 const mappedResponses = selectedModelIds.map((id, idx) => {
-                    const internalResult = results[idx];
+                    const internalResult = results.find((r: any) => r.id === id) || results[idx];
+
+                    if (!internalResult) {
+                        return {
+                            modelId: id,
+                            text: '',
+                            status: 'failed' as const,
+                            error: 'Not processed (Limit exceeded)'
+                        };
+                    }
+
                     return {
                         modelId: id,
                         text: internalResult.text,
@@ -387,12 +390,11 @@ export function ChatInterface() {
 
                 updated[updated.length - 1] = {
                     userMessage: currentInput,
-                    responses: mappedResponses
+                    responses: mappedResponses as any // Type assertion for safety
                 };
                 return updated;
             });
 
-            // Refresh User Status (trial might have incremented)
             fetchUserStatus();
 
         } catch (err: any) {
@@ -400,7 +402,7 @@ export function ChatInterface() {
             setChatHistory(prev => {
                 const updated = [...prev];
                 updated[updated.length - 1].responses = selectedModelIds.map(id => ({
-                    modelId: id, text: '', status: 'failed', error: err.message
+                    modelId: id, text: '', status: 'failed' as const, error: err.message
                 }));
                 return updated;
             });
@@ -413,7 +415,6 @@ export function ChatInterface() {
         e.stopPropagation();
         if (!window.confirm("Are you sure you want to delete this chat?")) return;
 
-        // Optimistic update
         setChats(prev => prev.filter(c => c.id !== chatId));
         if (activeChatId === chatId) {
             handleNewChat();
@@ -421,14 +422,8 @@ export function ChatInterface() {
 
         try {
             const res = await fetch(`/api/chats/${chatId}`, { method: 'DELETE' });
-            if (!res.ok) {
-                console.error("Failed to delete chat");
-                // Revert if needed, but for now simple logging.
-                // ideally we would re-fetch chats here if it failed.
-                fetchChats();
-            }
+            if (!res.ok) fetchChats();
         } catch (error) {
-            console.error("Failed to delete chat:", error);
             fetchChats();
         }
     };
@@ -436,17 +431,13 @@ export function ChatInterface() {
     const handleClearAllChats = async () => {
         if (!window.confirm("Are you sure you want to delete ALL chats? This cannot be undone.")) return;
 
-        // Optimistic update
         setChats([]);
         handleNewChat();
 
         try {
             const res = await fetch('/api/chats', { method: 'DELETE' });
-            if (!res.ok) {
-                throw new Error("Failed to delete all chats");
-            }
+            if (!res.ok) throw new Error("Failed");
         } catch (error) {
-            console.error("Failed to delete all chats:", error);
             fetchChats();
         }
     };
@@ -454,10 +445,15 @@ export function ChatInterface() {
     if (!isLoaded) return <div className="p-8">Loading...</div>;
 
     return (
-        <div className="flex min-h-screen bg-white dark:bg-black text-black dark:text-white">
+        <div className="flex min-h-screen bg-white dark:bg-black text-black dark:text-white overflow-hidden">
             {/* Sidebar */}
-            <aside className="w-64 border-r border-zinc-200 dark:border-zinc-800 flex flex-col bg-zinc-50 dark:bg-zinc-900/50">
-                <div className="p-4 border-b border-zinc-200 dark:border-zinc-800">
+            <aside
+                className={clsx(
+                    "border-r border-zinc-200 dark:border-zinc-800 flex flex-col bg-zinc-50 dark:bg-zinc-900/50 transition-all duration-300 ease-in-out overflow-hidden relative",
+                    isSidebarOpen ? "w-64 translate-x-0" : "w-0 -translate-x-full opacity-0"
+                )}
+            >
+                <div className="p-4 border-b border-zinc-200 dark:border-zinc-800 min-w-[16rem]">
                     <button
                         onClick={handleNewChat}
                         className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-black rounded-lg hover:opacity-90 transition font-medium text-sm shadow-sm"
@@ -467,7 +463,7 @@ export function ChatInterface() {
                     </button>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-2 space-y-1">
+                <div className="flex-1 overflow-y-auto p-2 space-y-1 min-w-[16rem]">
                     {chats.map(chat => (
                         <button
                             key={chat.id}
@@ -508,7 +504,7 @@ export function ChatInterface() {
                     )}
                 </div>
 
-                <div className="p-4 border-t border-zinc-200 dark:border-zinc-800 flex flex-col gap-4">
+                <div className="p-4 border-t border-zinc-200 dark:border-zinc-800 flex flex-col gap-4 min-w-[16rem]">
                     <a href="/privacy" className="text-xs text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300 transition-colors">
                         Privacy Policy
                     </a>
@@ -532,12 +528,23 @@ export function ChatInterface() {
             </aside>
 
             {/* Main Content */}
-            <main className="flex-1 flex flex-col h-screen overflow-hidden relative bg-white dark:bg-[#09090b]">
-                {/* Removed max-w-6xl mx-auto to allow full width, flush right alignment */}
-                <div className="flex-1 overflow-y-auto w-full p-4 md:p-8">
+            <main className="flex-1 flex flex-col h-screen overflow-hidden relative bg-white dark:bg-[#09090b] transition-all duration-300">
 
+                {/* Mobile / Toggle Header */}
+                <div className="absolute top-4 left-4 z-20">
+                    <button
+                        onClick={toggleSidebar}
+                        className="p-2 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors"
+                        title={isSidebarOpen ? "Close sidebar" : "Open sidebar"}
+                    >
+                        {isSidebarOpen ? <ChevronLeft size={20} /> : <Menu size={20} />}
+                    </button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto w-full p-4 md:p-8 pt-16 md:pt-8">
                     {/* Header & Selector */}
-                    <div className="flex flex-col gap-6 mb-8">
+                    <div className="flex flex-col gap-6 mb-8 pl-10 md:pl-0">
+                        {/* Added padding left to avoid overlap with toggle button when closed in small screens or aligned */}
                         <div className="flex items-start justify-between">
                             <div className="space-y-2">
                                 <div className="flex items-center gap-3">
@@ -552,7 +559,7 @@ export function ChatInterface() {
                                     Select up to 3 models to compare responses side-by-side.
                                 </p>
                             </div>
-                            {/* Right Side Actions */}
+
                             <div className="flex flex-col items-end gap-3">
                                 {activeChatId && (
                                     <button
@@ -565,13 +572,12 @@ export function ChatInterface() {
                                     </button>
                                 )}
 
-                                {/* Premium Trial Banner */}
                                 {!isPremium && premiumTrialUsed > 0 && (
                                     <div className={clsx(
                                         "text-xs font-semibold px-2 py-1 rounded bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700",
                                         premiumTrialUsed >= TRIAL_LIMIT ? "text-red-500 dark:text-red-400" : "text-zinc-600 dark:text-zinc-400"
                                     )}>
-                                        Premium Trial: {premiumTrialUsed} / {TRIAL_LIMIT} messages used
+                                        Trial: {premiumTrialUsed} / {TRIAL_LIMIT}
                                     </div>
                                 )}
                             </div>
@@ -597,7 +603,7 @@ export function ChatInterface() {
                                 <div className="text-center space-y-2">
                                     <h3 className="text-lg font-medium text-zinc-900 dark:text-zinc-100">Welcome to Universe AI</h3>
                                     <p className="max-w-xs mx-auto text-sm text-zinc-500">
-                                        Select up to 3 models above and start a conversation to see them compare side-by-side.
+                                        Select models and say hello!
                                     </p>
                                 </div>
                             </div>
@@ -605,10 +611,8 @@ export function ChatInterface() {
 
                         {chatHistory.map((turn, idx) => (
                             <div key={idx} className="flex flex-col gap-6 group">
-                                {/* User Message */}
                                 <div className="flex justify-end group/message">
                                     <div className="flex items-center gap-2">
-                                        {/* Edit Button */}
                                         {idx === chatHistory.length - 1 && !isLoading && (
                                             <button
                                                 onClick={() => handleEdit(turn.userMessage)}
@@ -624,11 +628,10 @@ export function ChatInterface() {
                                     </div>
                                 </div>
 
-                                {/* Model Responses Row */}
                                 <div className={`grid gap-4 w-full`} style={{
-                                    gridTemplateColumns: `repeat(${selectedModelIds.length}, minmax(0, 1fr))`
+                                    gridTemplateColumns: `repeat(${Math.max(1, selectedModelIds.length)}, minmax(0, 1fr))`
                                 }}>
-                                    {selectedModelIds.map(modelId => {
+                                    {selectedModelIds.length > 0 ? selectedModelIds.map(modelId => {
                                         const response = turn.responses.find(r => r.modelId === modelId);
                                         const model = getModelById(modelId);
 
@@ -647,7 +650,10 @@ export function ChatInterface() {
                                                 />
                                             </div>
                                         );
-                                    })}
+                                    }) : (
+                                        /* Fallback if no models selected, though we disable submit usually */
+                                        <div className="text-center text-zinc-500">Select a model to see response</div>
+                                    )}
                                 </div>
                             </div>
                         ))}
@@ -655,7 +661,10 @@ export function ChatInterface() {
                 </div>
 
                 {/* Input Area */}
-                <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-white via-white to-transparent dark:from-black dark:via-black pb-8 pointer-events-none">
+                <div className={clsx(
+                    "absolute bottom-0 p-4 bg-gradient-to-t from-white via-white to-transparent dark:from-black dark:via-black pb-8 pointer-events-none transition-all duration-300",
+                    isSidebarOpen ? "left-0 right-0" : "left-0 right-0"
+                )}>
                     <div className="max-w-3xl mx-auto w-full pointer-events-auto">
                         <ChatInput
                             input={input}
