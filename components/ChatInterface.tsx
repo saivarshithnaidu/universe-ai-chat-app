@@ -6,7 +6,7 @@ import { AVAILABLE_MODELS, getModelById, AIModel } from '@/lib/models';
 import { ModelSelector } from '@/components/ModelSelector';
 import { ChatInput } from '@/components/ChatInput';
 import { ModelResponseCard } from '@/components/ModelResponseCard';
-import { ChevronLeft, Menu, MessageSquare, Pencil, Plus, Trash2, X } from 'lucide-react';
+import { ChevronLeft, Menu, MessageSquare, Plus, Trash2, X, PanelLeftClose, PanelLeft, Settings, LogOut, SquarePen, Sparkles } from 'lucide-react';
 import { UserButton, SignedIn, SignedOut, SignInButton, useAuth } from "@clerk/nextjs";
 import clsx from 'clsx';
 import { db, Chat, Message } from '@/lib/db';
@@ -253,11 +253,6 @@ export function ChatInterface() {
         }
     };
 
-    const handleEdit = (userMessage: string) => {
-        setInput(userMessage);
-        setIsEditing(true);
-    };
-
     const handleRetry = async (modelId: string, turnIndex: number) => {
         if (isLoading) return;
 
@@ -473,7 +468,7 @@ export function ChatInterface() {
         }
     };
 
-    if (!isLoaded) return <div className="p-8 bg-[#0B0B0B] text-zinc-500 h-screen flex items-center justify-center">Loading...</div>;
+    if (!isLoaded) return <div className="bg-[#0B0B0B] h-screen w-full flex items-center justify-center"></div>;
 
     return (
         <div className="flex h-screen w-full bg-[#0B0B0B] text-zinc-100 overflow-hidden relative selection:bg-blue-500/30">
@@ -481,36 +476,130 @@ export function ChatInterface() {
             {/* Sidebar Desktop */}
             <aside
                 className={clsx(
-                    "hidden md:flex flex-col border-r border-white/5 bg-[#121212] transition-all duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1)] overflow-hidden z-10",
-                    isSidebarOpen ? "w-[280px] opacity-100" : "w-0 opacity-0"
+                    "hidden md:flex flex-col border-r border-white/5 bg-[#121212] transition-all duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1)] overflow-hidden z-20",
+                    isSidebarOpen ? "w-[260px]" : "w-[60px]"
                 )}
             >
-                {/* Sidebar Content */}
-                <SidebarContent
-                    chats={chats}
-                    activeChatId={activeChatId}
-                    fetchChatMessages={fetchChatMessages}
-                    handleNewChat={handleNewChat}
-                    handleDeleteChat={handleDeleteChat}
-                    handleClearAllChats={handleClearAllChats}
-                />
+                <div className="flex flex-col h-full">
+                    {/* Header Padded */}
+                    <div className="h-14 flex items-center justify-between px-3 border-b border-white/5">
+                        {isSidebarOpen ? (
+                            <button
+                                onClick={handleNewChat}
+                                className="flex-1 flex items-center gap-2 px-3 py-2 bg-white/5 hover:bg-white/10 text-zinc-200 rounded-lg transition-colors text-sm font-medium"
+                            >
+                                <SquarePen className="w-4 h-4" />
+                                <span className="truncate">New Chat</span>
+                            </button>
+                        ) : (
+                            <button
+                                onClick={handleNewChat}
+                                className="p-2 hover:bg-white/5 rounded-lg text-zinc-400 hover:text-white transition-colors mx-auto"
+                                title="New Chat"
+                            >
+                                <SquarePen className="w-5 h-5" />
+                            </button>
+                        )}
+
+                        {isSidebarOpen && (
+                            <button onClick={toggleSidebar} className="p-2 text-zinc-500 hover:text-white transition-colors">
+                                <PanelLeftClose className="w-4 h-4" />
+                            </button>
+                        )}
+                    </div>
+
+                    {/* Chat List */}
+                    <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
+                        {isSidebarOpen ? (
+                            chats.map((chat: any) => (
+                                <button
+                                    key={chat.id}
+                                    onClick={() => fetchChatMessages(chat.id)}
+                                    className={clsx(
+                                        "w-full text-left px-3 py-2.5 rounded-lg text-sm truncate transition-all duration-200 group flex items-center justify-between gap-2",
+                                        activeChatId === chat.id
+                                            ? "bg-[#1C1C1C] text-zinc-100"
+                                            : "text-zinc-400 hover:text-zinc-200 hover:bg-white/5"
+                                    )}
+                                >
+                                    <span className="truncate flex-1">{chat.title || "New Chat"}</span>
+                                    {activeChatId === chat.id && (
+                                        <div
+                                            onClick={(e) => handleDeleteChat(e, chat.id)}
+                                            className="opacity-0 group-hover:opacity-100 p-1 hover:bg-white/10 rounded transition-all text-zinc-500 hover:text-red-400"
+                                        >
+                                            <Trash2 size={13} />
+                                        </div>
+                                    )}
+                                </button>
+                            ))
+                        ) : (
+                            // Collapsed Icons Only (optional - or just hide list)
+                            chats.slice(0, 5).map((chat) => (
+                                <button
+                                    key={chat.id}
+                                    onClick={() => fetchChatMessages(chat.id)}
+                                    className={clsx(
+                                        "w-full flex justify-center py-3 rounded-lg hover:bg-white/5 transition-colors",
+                                        activeChatId === chat.id ? "text-white bg-white/5" : "text-zinc-500"
+                                    )}
+                                    title={chat.title}
+                                >
+                                    <MessageSquare size={18} />
+                                </button>
+                            ))
+                        )}
+                    </div>
+
+                    {/* Footer */}
+                    <div className="p-2 border-t border-white/5 space-y-1">
+                        {!isSidebarOpen && (
+                            <button onClick={toggleSidebar} className="w-full flex justify-center p-2 text-zinc-500 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
+                                <PanelLeft className="w-5 h-5" />
+                            </button>
+                        )}
+
+                        {isSidebarOpen && (
+                            <div className="space-y-1">
+                                <a href="/privacy-policy" className="flex items-center gap-3 px-3 py-2 text-sm text-zinc-500 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
+                                    <Settings className="w-4 h-4" />
+                                    Privacy & Settings
+                                </a>
+                                <div className="px-3 py-2">
+                                    <UserButton />
+                                </div>
+                            </div>
+                        )}
+                        {!isSidebarOpen && (
+                            <div className="flex justify-center py-2">
+                                <UserButton
+                                    appearance={{
+                                        elements: { userButtonAvatarBox: "w-8 h-8" }
+                                    }}
+                                />
+                            </div>
+                        )}
+                    </div>
+                </div>
             </aside>
 
-            {/* Sidebar Mobile Overlay */}
+            {/* Mobile Sidebar Overlay */}
             {isMobile && isSidebarOpen && (
                 <div className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm md:hidden" onClick={() => setIsSidebarOpen(false)}>
-                    <div
-                        className="fixed inset-y-0 left-0 w-[280px] bg-[#121212] flex flex-col z-50 transform transition-transform border-r border-white/5 shadow-2xl"
-                        onClick={e => e.stopPropagation()}
-                    >
-                        <SidebarContent
-                            chats={chats}
-                            activeChatId={activeChatId}
-                            fetchChatMessages={fetchChatMessages}
-                            handleNewChat={handleNewChat}
-                            handleDeleteChat={handleDeleteChat}
-                            handleClearAllChats={handleClearAllChats}
-                        />
+                    <div className="fixed inset-y-0 left-0 w-[280px] bg-[#121212] flex flex-col z-50 transform transition-transform border-r border-white/5 shadow-2xl" onClick={e => e.stopPropagation()}>
+                        {/* Mobile Sidebar Content is simpler duplication for safety */}
+                        <div className="p-4 border-b border-white/5 flex justify-between items-center">
+                            <span className="font-semibold text-zinc-200">Menu</span>
+                            <button onClick={() => setIsSidebarOpen(false)} className="text-zinc-500"><X size={20} /></button>
+                        </div>
+                        <div className="p-4">
+                            <button onClick={handleNewChat} className="w-full py-2 bg-white text-black rounded-lg font-medium mb-4">New Chat</button>
+                            {chats.map((chat: any) => (
+                                <div key={chat.id} onClick={() => fetchChatMessages(chat.id)} className="py-3 text-zinc-400 border-b border-white/5 truncate">
+                                    {chat.title || "New Chat"}
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 </div>
             )}
@@ -518,249 +607,104 @@ export function ChatInterface() {
             {/* Main Content Area */}
             <main className="flex-1 flex flex-col h-full min-w-0 relative bg-[#0B0B0B]">
 
-                {/* Header Toggle (Visible always) */}
-                <div className="absolute top-4 left-4 z-20">
-                    <button
-                        onClick={toggleSidebar}
-                        className={clsx(
-                            "p-2 rounded-lg text-zinc-400 hover:text-white hover:bg-white/5 transition-all",
-                            (isSidebarOpen && !isMobile) && "opacity-0 pointer-events-none"
-                        )}
-                        title={isSidebarOpen ? "Close sidebar" : "Open sidebar"}
-                    >
-                        {!isSidebarOpen && <Menu size={20} />}
-                        {isSidebarOpen && <ChevronLeft size={20} />}
-                    </button>
-                </div>
-
-                {/* Scrollable Messages Area */}
-                <div className="flex-1 overflow-y-auto w-full p-4 md:p-8 scroll-smooth no-scrollbar">
-
-                    {/* Spacer for toggle button */}
-                    <div className="h-6"></div>
-
-                    {/* Header & Selector */}
-                    <div className="flex flex-col gap-6 mb-8 pl-10 md:pl-0 pt-2 animate-in fade-in slide-in-from-bottom-2 duration-500">
-                        <div className="flex items-start justify-between flex-wrap gap-4">
-                            <div className="space-y-1">
-                                <div className="flex items-center gap-3">
-                                    <h1 className="text-2xl font-semibold tracking-tight text-white">Multi-Model Chat</h1>
-                                    {isPremium && (
-                                        <span className="bg-blue-500/10 text-blue-400 border border-blue-500/20 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
-                                            PRO
-                                        </span>
-                                    )}
-                                </div>
-                                <p className="text-zinc-500 text-sm">
-                                    Compare intelligent responses side-by-side.
-                                </p>
-                            </div>
-
-                            <div className="flex flex-col items-end gap-3 flex-shrink-0">
-                                {activeChatId && (
-                                    <button
-                                        onClick={(e) => handleDeleteChat(e, activeChatId)}
-                                        className="flex items-center gap-2 text-xs font-medium text-zinc-500 hover:text-red-400 transition-colors px-3 py-1.5 rounded-md hover:bg-red-500/5 border border-transparent hover:border-red-500/10"
-                                        title="Delete current chat"
-                                    >
-                                        <Trash2 size={14} />
-                                        Delete Chat
-                                    </button>
-                                )}
-
-                                {!isPremium && premiumTrialUsed > 0 && (
-                                    <div className={clsx(
-                                        "text-[10px] font-semibold px-2 py-1 rounded bg-zinc-900 border border-white/5",
-                                        premiumTrialUsed >= TRIAL_LIMIT ? "text-red-400 border-red-500/20" : "text-zinc-500"
-                                    )}>
-                                        Trial: {premiumTrialUsed} / {TRIAL_LIMIT}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
+                {/* Header */}
+                <header className="h-14 flex items-center justify-between px-4 border-b border-white/5 bg-[#0B0B0B]/80 backdrop-blur-md sticky top-0 z-10">
+                    <div className="flex items-center gap-3">
+                        {!isSidebarOpen || isMobile ? (
+                            <button onClick={toggleSidebar} className="p-2 -ml-2 text-zinc-500 hover:text-white transition-colors">
+                                {isMobile ? <Menu size={20} /> : <PanelLeft size={20} />}
+                            </button>
+                        ) : <div className="w-0" />}
 
                         <ModelSelector
                             selectedModelIds={selectedModelIds}
                             onToggle={toggleModel}
                             disabled={isLoading}
                             isPremium={isPremium}
-                            trialUsage={premiumTrialUsed}
-                            trialLimit={TRIAL_LIMIT}
                         />
                     </div>
+                </header>
 
-                    {/* Chat Messages */}
-                    <div className="flex flex-col gap-8 pb-4">
-                        {chatHistory.length === 0 && (
-                            <div className="flex-1 flex flex-col items-center justify-center text-zinc-500 py-20 gap-6 animate-in fade-in zoom-in duration-700">
-                                <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center ring-1 ring-white/5 shadow-xl">
-                                    <MessageSquare className="w-8 h-8 text-zinc-600" />
+                {/* Messages Area - Centered and Clean */}
+                <div className="flex-1 overflow-y-auto w-full p-4 scroll-smooth custom-scrollbar">
+                    <div className="max-w-[850px] mx-auto flex flex-col min-h-full pb-8">
+
+                        {chatHistory.length === 0 ? (
+                            <div className="flex-1 flex flex-col items-center justify-center text-center gap-6 opacity-0 animate-in fade-in slide-in-from-bottom-4 duration-700 fill-mode-forwards">
+                                <div className="relative w-[300px] h-[300px] mb-8 animate-in fade-in zoom-in duration-1000">
+                                    <div className="absolute inset-0 bg-blue-500/10 blur-[100px] rounded-full" />
+                                    <img
+                                        src="/welcome-header.png"
+                                        alt="Universal AI"
+                                        className="relative w-full h-full object-contain drop-shadow-2xl"
+                                    />
                                 </div>
-                                <div className="text-center space-y-2 max-w-sm">
-                                    <h3 className="text-lg font-medium text-white">Start a new comparison</h3>
-                                    <p className="text-sm text-zinc-500">
-                                        Select up to 3 models above to transparently compare their reasoning and speed.
-                                    </p>
-                                </div>
+                                <h2 className="text-2xl font-semibold text-white">How can I help you today?</h2>
+                            </div>
+                        ) : (
+                            <div className="flex flex-col gap-10 py-6">
+                                {chatHistory.map((turn, idx) => (
+                                    <div key={idx} className="flex flex-col gap-6">
+                                        {/* User Message - Right Aligned */}
+                                        <div className="flex justify-end">
+                                            <div className="bg-[#212121] text-zinc-100 px-5 py-3 rounded-3xl rounded-tr-sm max-w-[85%] text-[15px] leading-relaxed break-words">
+                                                {turn.userMessage}
+                                            </div>
+                                        </div>
+
+                                        {/* AI Responses - Grid if multiple, or single block */}
+                                        <div className={`grid gap-5 w-full`} style={{
+                                            gridTemplateColumns: `repeat(${Math.max(1, selectedModelIds.length)}, minmax(0, 1fr))`
+                                        }}>
+                                            {selectedModelIds.map(modelId => {
+                                                const response = turn.responses.find((r: any) => r.modelId === modelId);
+                                                const model = getModelById(modelId);
+                                                if (!model) return null;
+
+                                                // If we have content or loading, show card. 
+                                                // If busy but not primary, we still show placeholders.
+
+                                                return (
+                                                    <div key={modelId} className="min-w-0">
+                                                        <ModelResponseCard
+                                                            model={model}
+                                                            messages={response?.text ? [{ role: 'assistant', content: response.text }] : []}
+                                                            isLoading={isLoading && (!response || response.status === 'busy')}
+                                                            error={response?.error}
+                                                            status={response?.status}
+                                                            note={response?.note}
+                                                            onRetry={() => handleRetry(modelId, idx)}
+                                                        />
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                ))}
+                                <div ref={messagesEndRef} className="h-px" />
                             </div>
                         )}
 
-                        {chatHistory.map((turn, idx) => (
-                            <div key={idx} className="flex flex-col gap-6 group">
-                                <div className="flex justify-end group/message">
-                                    <div className="flex items-center gap-3">
-                                        {idx === chatHistory.length - 1 && !isLoading && (
-                                            <button
-                                                onClick={() => handleEdit(turn.userMessage)}
-                                                className="p-2 text-zinc-600 hover:text-white opacity-0 group-hover/message:opacity-100 transition-all hover:bg-white/5 rounded-lg"
-                                                title="Edit message"
-                                            >
-                                                <Pencil className="w-3.5 h-3.5" />
-                                            </button>
-                                        )}
-                                        <div className="bg-[#1C1C1C] border border-white/5 rounded-2xl rounded-tr-sm px-5 py-3 text-zinc-200 max-w-2xl text-[15px] leading-relaxed shadow-sm">
-                                            {turn.userMessage}
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className={`grid gap-4 w-full`} style={{
-                                    gridTemplateColumns: `repeat(${Math.max(1, selectedModelIds.length)}, minmax(0, 1fr))`
-                                }}>
-                                    {selectedModelIds.length > 0 ? selectedModelIds.map(modelId => {
-                                        const response = turn.responses.find((r: any) => r.modelId === modelId);
-                                        const model = getModelById(modelId);
-
-                                        if (!model) return null;
-
-                                        return (
-                                            <div key={modelId} className="min-w-0">
-                                                <ModelResponseCard
-                                                    model={model}
-                                                    messages={response?.text ? [{ role: 'assistant', content: response.text }] : []}
-                                                    isLoading={isLoading && (!response || response.status === 'busy')}
-                                                    error={response?.error}
-                                                    status={response?.status}
-                                                    note={response?.note}
-                                                    onRetry={() => handleRetry(modelId, idx)}
-                                                />
-                                            </div>
-                                        );
-                                    }) : (
-                                        <div className="text-center text-zinc-600 text-sm py-4">Select a model to see response</div>
-                                    )}
-                                </div>
-                            </div>
-                        ))}
                     </div>
-                    {/* Anchor for auto-scroll */}
-                    <div ref={messagesEndRef} className="h-px w-full" />
                 </div>
 
-                {/* Fixed Input Area */}
-                <div className="flex-none p-4 pb-6 glass z-30 w-full">
-                    <div className="max-w-4xl mx-auto w-full">
-                        <ChatInput
-                            input={input}
-                            handleInputChange={(e) => setInput(e.target.value)}
-                            handleSubmit={handleSubmit}
-                            isLoading={isLoading}
-                            disabled={selectedModelIds.length === 0}
-                        />
-                        <p className="text-center text-[10px] md:text-[11px] text-zinc-600 mt-3 font-medium">
-                            AI can make mistakes. Please verify important information.
-                        </p>
+                {/* Input Area - Sticky Bottom */}
+                <div className="p-4 pb-6 bg-gradient-to-t from-[#0B0B0B] via-[#0B0B0B] to-transparent z-20">
+                    <ChatInput
+                        input={input}
+                        handleInputChange={(e) => setInput(e.target.value)}
+                        handleSubmit={handleSubmit}
+                        isLoading={isLoading}
+                        disabled={selectedModelIds.length === 0}
+                    />
+                    <div className="text-center mt-3">
+                        <span className="text-[11px] text-zinc-600">
+                            Universal AI can make mistakes. Consider checking important information.
+                        </span>
                     </div>
                 </div>
 
             </main>
-        </div>
-    );
-}
-
-// Extracted Sidebar Content for reusability (Desktop/Mobile)
-function SidebarContent({
-    chats,
-    activeChatId,
-    fetchChatMessages,
-    handleNewChat,
-    handleDeleteChat,
-    handleClearAllChats
-}: any) {
-    return (
-        <div className="flex flex-col h-full w-full">
-            <div className="p-4 border-b border-white/5">
-                <button
-                    onClick={handleNewChat}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-zinc-100 text-black hover:bg-white transition-all font-medium text-sm rounded-lg shadow-sm active:scale-[0.98]"
-                >
-                    <Plus size={16} />
-                    New Chat
-                </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-2 space-y-1 custom-scrollbar">
-                {chats.map((chat: any) => (
-                    <button
-                        key={chat.id}
-                        onClick={() => fetchChatMessages(chat.id)}
-                        className={clsx(
-                            "w-full text-left px-3 py-3 rounded-lg text-sm truncate transition-all duration-200 group flex items-center justify-between gap-2 border",
-                            activeChatId === chat.id
-                                ? "bg-[#1C1C1C] text-white border-white/5 shadow-sm"
-                                : "text-zinc-400 hover:text-zinc-200 hover:bg-white/5 border-transparent"
-                        )}
-                    >
-                        <span className="truncate flex-1 font-medium">{chat.title || "New Chat"}</span>
-                        <div
-                            onClick={(e) => handleDeleteChat(e, chat.id)}
-                            className={clsx(
-                                "p-1 rounded opacity-0 group-hover:opacity-100 transition-all hover:bg-red-500/10 hover:text-red-400",
-                                activeChatId === chat.id ? "text-zinc-500" : "text-zinc-600"
-                            )}
-                            role="button"
-                            title="Delete chat"
-                        >
-                            <Trash2 size={13} />
-                        </div>
-                    </button>
-                ))}
-            </div>
-
-            <div className="p-4 border-t border-white/5 flex flex-col gap-3 bg-[#121212]">
-                {chats.length > 0 && (
-                    <button
-                        onClick={handleClearAllChats}
-                        className="w-full text-xs font-medium text-zinc-500 hover:text-red-400 flex items-center justify-center gap-1.5 py-2 transition-colors border border-transparent hover:border-red-500/10 hover:bg-red-500/5 rounded-md"
-                    >
-                        <Trash2 size={12} />
-                        Clear History
-                    </button>
-                )}
-
-                <div className="flex items-center justify-between px-1">
-                    <a href="/privacy" className="text-[11px] text-zinc-600 hover:text-zinc-400 transition-colors">
-                        Privacy Policy
-                    </a>
-                </div>
-
-                <div className="flex items-center justify-between pt-1">
-                    <SignedOut>
-                        <SignInButton mode="modal">
-                            <button className="text-xs font-medium text-zinc-400 hover:text-white transition-colors">Sign In</button>
-                        </SignInButton>
-                    </SignedOut>
-                    <SignedIn>
-                        <UserButton
-                            appearance={{
-                                elements: {
-                                    userButtonAvatarBox: "size-7 ring-2 ring-white/5"
-                                }
-                            }}
-                        />
-                    </SignedIn>
-                </div>
-            </div>
         </div>
     );
 }

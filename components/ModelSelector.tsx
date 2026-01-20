@@ -2,8 +2,8 @@
 
 import { AVAILABLE_MODELS, AIModel } from '@/lib/models';
 import { cn } from '@/lib/utils';
-import { Check, Bot, Lock, Sparkles } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { Check, Bot, Lock, Sparkles, ChevronDown, Cpu } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
 
 interface ModelSelectorProps {
     selectedModelIds: string[];
@@ -22,106 +22,132 @@ export function ModelSelector({
     trialUsage = 0,
     trialLimit = 5
 }: ModelSelectorProps) {
-    const router = useRouter();
+    const [isOpen, setIsOpen] = useState(false);
+    const dropdownRef = useRef<HTMLDivElement>(null);
+
     const freeModels = AVAILABLE_MODELS.filter(m => !m.isPremium);
     const premiumModels = AVAILABLE_MODELS.filter(m => m.isPremium);
 
-    const renderModelCard = (model: AIModel) => {
+    // Close dropdown on click outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const renderModelItem = (model: AIModel) => {
         const isSelected = selectedModelIds.includes(model.id);
         const isLocked = !isPremium && model.isPremium;
 
         return (
             <button
                 key={model.id}
-                onClick={() => onToggle(model.id)}
-                disabled={disabled || (!isSelected && selectedModelIds.length >= 3)}
+                onClick={() => {
+                    if (!disabled && (!isLocked || isSelected || selectedModelIds.length < 3)) {
+                        onToggle(model.id);
+                    }
+                }}
+                disabled={disabled || (!isSelected && selectedModelIds.length >= 3 && !isLocked)}
                 className={cn(
-                    "flex flex-col items-start p-4 rounded-xl border transition-all text-left relative group backdrop-blur-sm",
-                    isSelected
-                        ? "border-blue-500/50 bg-blue-500/10 shadow-[0_0_20px_-5px_rgba(59,130,246,0.3)] ring-1 ring-blue-500/50"
-                        : "border-white/5 bg-[#181818]/60 hover:bg-[#202020] hover:border-white/10 hover:-translate-y-0.5 hover:shadow-lg",
-                    isLocked && !isSelected && "hover:border-amber-500/30",
-                    !isLocked && disabled && "opacity-50 cursor-not-allowed",
-                    !isLocked && !isSelected && selectedModelIds.length >= 3 && "opacity-40 cursor-not-allowed contrast-50"
+                    "w-full flex items-center justify-between p-2.5 rounded-lg transition-all text-left group",
+                    isSelected ? "bg-white/10" : "hover:bg-white/5",
+                    isLocked && "opacity-75"
                 )}
             >
-                {isLocked && (
-                    <div className="absolute top-2 right-2 text-amber-500/80">
-                        <Lock className="w-3.5 h-3.5" />
+                <div className="flex items-center gap-3">
+                    <div className={cn(
+                        "p-1.5 rounded-md flex items-center justify-center transition-colors",
+                        isSelected ? "bg-blue-500/20 text-blue-400" : "bg-white/5 text-zinc-400"
+                    )}>
+                        {model.id === 'gemini-flash' || model.id === 'gemini-flash-3.0-pro' ? (
+                            <img src="/icons/gemini.png" alt="Gemini" className="w-4 h-4 object-contain" />
+                        ) : model.id === 'phi-3-medium' ? (
+                            <img src="/icons/phi.png" alt="Phi" className="w-4 h-4 object-contain" />
+                        ) : model.id === 'mixtral-8x7b' ? (
+                            <img src="/icons/mixtral.svg" alt="Mixtral" className="w-4 h-4 object-contain invert opacity-90" />
+                        ) : model.id === 'llama-3.1-8b' ? (
+                            <img src="/icons/llama.png" alt="LLaMA" className="w-4 h-4 object-contain" />
+                        ) : model.id === 'claude-sonnet' ? (
+                            <Bot className="w-4 h-4 text-purple-400" />
+                        ) : model.id === 'gpt-5.2-pro' ? (
+                            <Bot className="w-4 h-4 text-green-400" />
+                        ) : (
+                            <Bot className="w-4 h-4 text-zinc-400" />
+                        )}
                     </div>
-                )}
-
-                <div className="flex w-full items-center justify-between mb-3">
-                    <div className="flex items-center gap-2.5">
-                        <div className={cn(
-                            "p-1.5 rounded-lg flex items-center justify-center transition-colors",
-                            isSelected ? "bg-blue-500/20" : "bg-white/5 group-hover:bg-white/10"
-                        )}>
-                            {model.id === 'gemini-flash' || model.id === 'gemini-flash-3.0-pro' ? (
-                                <img src="/icons/gemini.png" alt="Gemini" className="w-4 h-4 object-contain" />
-                            ) : model.id === 'phi-3-medium' ? (
-                                <img src="/icons/phi.png" alt="Phi" className="w-4 h-4 object-contain" />
-                            ) : model.id === 'mixtral-8x7b' ? (
-                                <img src="/icons/mixtral.svg" alt="Mixtral" className="w-4 h-4 object-contain invert opacity-90" />
-                            ) : model.id === 'llama-3.1-8b' ? (
-                                <img src="/icons/llama.png" alt="LLaMA" className="w-4 h-4 object-contain" />
-                            ) : model.id === 'claude-sonnet' ? (
-                                <Bot className="w-4 h-4 text-purple-400" />
-                            ) : model.id === 'gpt-5.2-pro' ? (
-                                <Bot className="w-4 h-4 text-green-400" />
-                            ) : (
-                                <Bot className="w-4 h-4 text-zinc-400" />
-                            )}
+                    <div>
+                        <div className="flex items-center gap-2">
+                            <span className={cn("text-sm font-medium", isSelected ? "text-white" : "text-zinc-300")}>
+                                {model.name}
+                            </span>
+                            {isLocked && <Lock className="w-3 h-3 text-amber-500" />}
                         </div>
-                        <span className={cn(
-                            "font-semibold text-sm tracking-tight",
-                            isSelected ? "text-white" : "text-zinc-300 group-hover:text-white"
-                        )}>
-                            {model.name}
-                        </span>
+                        <p className="text-[11px] text-zinc-500 line-clamp-1">{model.description}</p>
                     </div>
-                    {isSelected && (
-                        <div className="p-0.5 bg-blue-500 rounded-full">
-                            <Check className="w-2.5 h-2.5 text-white stroke-[3]" />
-                        </div>
-                    )}
                 </div>
-                <p className="text-[13px] text-zinc-500 group-hover:text-zinc-400 line-clamp-2 leading-relaxed">
-                    {model.description}
-                </p>
-            </button >
+
+                {isSelected && <Check className="w-4 h-4 text-blue-400" />}
+            </button>
         );
     };
 
     return (
-        <div className="w-full space-y-8">
-            <div className="space-y-4">
-                <div className="flex items-center gap-2 px-1">
-                    <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-widest">
-                        Available Models
-                    </h3>
-                    <div className="h-px bg-white/5 flex-1 ml-2"></div>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
-                    {freeModels.map(renderModelCard)}
-                </div>
-            </div>
+        <div className="relative" ref={dropdownRef}>
+            <button
+                onClick={() => setIsOpen(!isOpen)}
+                disabled={disabled}
+                className={cn(
+                    "flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-white/5 transition-colors group",
+                    disabled && "opacity-50 cursor-not-allowed"
+                )}
+            >
+                <span className="text-sm font-medium text-zinc-300 group-hover:text-white">
+                    {selectedModelIds.length === 0
+                        ? "Select Models"
+                        : `${selectedModelIds.length} Model${selectedModelIds.length > 1 ? 's' : ''} Selected`}
+                </span>
+                <ChevronDown className={cn("w-4 h-4 text-zinc-500 transition-transform", isOpen && "rotate-180")} />
+            </button>
 
-            <div className="space-y-4">
-                <div className="flex items-center gap-3 px-1">
-                    <h3 className="text-xs font-semibold text-amber-500/80 uppercase tracking-widest flex items-center gap-1.5">
-                        <Sparkles className="w-3 h-3" />
-                        Premium Models
-                    </h3>
-                    <span className="px-2 py-0.5 rounded text-[10px] bg-amber-500/10 text-amber-500 font-bold border border-amber-500/20">
-                        COMING SOON
-                    </span>
-                    <div className="h-px bg-amber-500/10 flex-1"></div>
+            {isOpen && (
+                <div className="absolute top-full left-0 mt-2 w-[320px] bg-[#121212] border border-white/10 rounded-xl shadow-2xl backdrop-blur-xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-100 origin-top-left">
+                    <div className="max-h-[60vh] overflow-y-auto custom-scrollbar p-1.5 space-y-1">
+
+                        {/* Selected Summary */}
+                        <div className="px-2 py-1.5 mb-1">
+                            <p className="text-[10px] uppercase tracking-wider font-semibold text-zinc-500">
+                                Max 3 models
+                            </p>
+                        </div>
+
+                        {/* Free Models Group */}
+                        <div className="space-y-1">
+                            <div className="px-2 py-1 bg-white/5 rounded mx-1">
+                                <span className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">Free</span>
+                            </div>
+                            {freeModels.map(renderModelItem)}
+                        </div>
+
+                        {/* Premium Models Group */}
+                        <div className="space-y-1 mt-3">
+                            <div className="px-2 py-1 bg-amber-500/10 rounded mx-1 flex items-center justify-between">
+                                <div className="flex items-center gap-1.5">
+                                    <Sparkles className="w-3 h-3 text-amber-500" />
+                                    <span className="text-[10px] font-semibold text-amber-500 uppercase tracking-wider">Premium</span>
+                                </div>
+                                {!isPremium && (
+                                    <span className="text-[9px] bg-amber-500 text-black font-bold px-1.5 rounded-sm">PRO</span>
+                                )}
+                            </div>
+                            {premiumModels.map(renderModelItem)}
+                        </div>
+                    </div>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
-                    {premiumModels.map(renderModelCard)}
-                </div>
-            </div>
+            )}
         </div>
     );
 }
