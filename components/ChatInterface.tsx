@@ -345,6 +345,13 @@ export function ChatInterface() {
         try {
             const messagesPayload = [{ role: 'user', content: currentInput }];
 
+            if (typeof window !== 'undefined' && (window as any).gtag) {
+                (window as any).gtag('event', 'chat_message_sent', {
+                    page: 'chat',
+                    feature: 'ai_chat'
+                });
+            }
+
             const modelHistories: Record<string, any[]> = {};
             selectedModelIds.forEach(id => {
                 modelHistories[id] = buildModelHistory(id, chatHistory, currentInput);
