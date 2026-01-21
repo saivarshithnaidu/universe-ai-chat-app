@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { ChatInterface } from "@/components/ChatInterface";
 import { cookies } from "next/headers";
 
+
 export default async function Home() {
   const { userId } = await auth();
 
