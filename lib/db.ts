@@ -62,6 +62,9 @@ export const db = {
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                 user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
                 title TEXT,
+                share_token TEXT UNIQUE,
+                is_public BOOLEAN DEFAULT FALSE,
+                shared_at TIMESTAMP,
                 created_at TIMESTAMP DEFAULT now()
             );`,
             `CREATE TABLE IF NOT EXISTS messages (
@@ -103,6 +106,22 @@ export const db = {
         } catch (e) {
             // Ignore error if columns exist
         }
+    },
+
+    async getChats(userId: string): Promise<Chat[]> {
+        const res = await dbPool.query(
+            `SELECT * FROM chats WHERE user_id = $1 ORDER BY created_at DESC`,
+            [userId]
+        );
+        return res.rows;
+    },
+
+    async getChat(chatId: string): Promise<Chat | null> {
+        const res = await dbPool.query(
+            `SELECT * FROM chats WHERE id = $1`,
+            [chatId]
+        );
+        return res.rows[0] || null;
     },
 
     async getUser(id: string) {
@@ -179,14 +198,6 @@ export const db = {
         return res.rows;
     },
 
-    async getChat(chatId: string): Promise<Chat | null> {
-        const res = await dbPool.query(
-            `SELECT * FROM chats WHERE id = $1`,
-            [chatId]
-        );
-        return res.rows[0] || null;
-    },
-
     async saveMessage(chatId: string, role: string, content: string, model?: string): Promise<Message> {
         const res = await dbPool.query(
             `INSERT INTO messages (chat_id, role, content, model) VALUES ($1, $2, $3, $4) RETURNING *`,
@@ -195,10 +206,13 @@ export const db = {
         return res.rows[0];
     },
 
-    async getChatMessages(chatId: string): Promise<Message[]> {
+    async getChatMessages(chatId: string, userId: string): Promise<Message[]> {
         const res = await dbPool.query(
-            `SELECT * FROM messages WHERE chat_id = $1 ORDER BY created_at ASC`,
-            [chatId]
+            `SELECT m.* FROM messages m
+             JOIN chats c ON m.chat_id = c.id
+             WHERE m.chat_id = $1 AND c.user_id = $2
+             ORDER BY m.created_at ASC`,
+            [chatId, userId]
         );
         return res.rows;
     },
@@ -215,5 +229,32 @@ export const db = {
             `DELETE FROM chats WHERE user_id = $1`,
             [userId]
         );
+    },
+
+    async updateChatTitle(chatId: string, userId: string, title: string): Promise<void> {
+        await dbPool.query(
+            `UPDATE chats SET title = $1 WHERE id = $2 AND user_id = $3`,
+            [title, chatId, userId]
+        );
+    },
+
+    async generateShareToken(chatId: string, userId: string): Promise<string> {
+        // Generate random token
+        const token = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+
+        await dbPool.query(
+            `UPDATE chats SET share_token = $1, is_public = TRUE, shared_at = now() WHERE id = $2 AND user_id = $3`,
+            [token, chatId, userId]
+        );
+
+        return token;
+    },
+
+    async getChatByShareToken(token: string): Promise<Chat | null> {
+        const res = await dbPool.query(
+            `SELECT * FROM chats WHERE share_token = $1 AND is_public = TRUE`,
+            [token]
+        );
+        return res.rows[0] || null;
     }
 };

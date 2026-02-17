@@ -38,7 +38,7 @@ export function ChatInput({ input, handleInputChange, handleSubmit, isLoading, d
                 <button
                     type="button"
                     disabled={disabled || isLoading}
-                    className="p-2 ml-1 text-zinc-400 hover:text-zinc-200 transition-colors rounded-full hover:bg-white/5"
+                    className="p-2 ml-1 text-zinc-400 hover:text-zinc-200 transition-colors rounded-full hover:bg-white/5 min-h-[44px] min-w-[44px] flex items-center justify-center touch-manipulation"
                 >
                     <Paperclip className="w-5 h-5" />
                 </button>
@@ -58,7 +58,7 @@ export function ChatInput({ input, handleInputChange, handleSubmit, isLoading, d
                     type="submit"
                     disabled={!input.trim() || disabled || isLoading}
                     className={cn(
-                        "p-2 rounded-full flex-shrink-0 transition-all duration-200 mb-1 mr-1 flex items-center justify-center",
+                        "p-2 rounded-full flex-shrink-0 transition-all duration-200 mb-1 mr-1 flex items-center justify-center min-h-[44px] min-w-[44px] touch-manipulation",
                         !input.trim() || disabled || isLoading
                             ? "bg-transparent text-zinc-600 cursor-not-allowed"
                             : "bg-white text-zinc-900 hover:bg-zinc-200"

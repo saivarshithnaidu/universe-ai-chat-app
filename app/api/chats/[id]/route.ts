@@ -1,30 +1,31 @@
 import { db } from '@/lib/db';
 import { auth } from '@clerk/nextjs/server';
 
-export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(
+    req: Request,
+    { params }: { params: Promise<{ id: string }> }
+) {
     try {
         const { userId } = await auth();
         if (!userId) {
             return Response.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        // Await params as per Next.js 15/16 requirements
         const { id: chatId } = await params;
 
+        // Verify chat ownership
         const chat = await db.getChat(chatId);
-        if (!chat) {
-            return Response.json({ error: 'Chat not found' }, { status: 404 });
+        if (!chat || chat.user_id !== userId) {
+            return Response.json({ error: 'Unauthorized - Chat not found or access denied' }, { status: 403 });
         }
 
-        if (chat.user_id !== userId) {
-            return Response.json({ error: 'Forbidden' }, { status: 403 });
-        }
+        // Now safe to fetch messages with user validation
+        const messages = await db.getChatMessages(chatId, userId);
 
-        const messages = await db.getChatMessages(chatId);
-        return Response.json(messages);
+        return Response.json({ messages });
     } catch (error) {
-        console.error("Error fetching messages:", error);
-        return Response.json({ error: 'Internal server error' }, { status: 500 });
+        console.error('Error fetching chat messages:', error);
+        return Response.json({ error: 'Failed to fetch messages' }, { status: 500 });
     }
 }
 

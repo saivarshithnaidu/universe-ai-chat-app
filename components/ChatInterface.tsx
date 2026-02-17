@@ -6,7 +6,7 @@ import { AVAILABLE_MODELS, getModelById, AIModel } from '@/lib/models';
 import { ModelSelector } from '@/components/ModelSelector';
 import { ChatInput } from '@/components/ChatInput';
 import { ModelResponseCard } from '@/components/ModelResponseCard';
-import { ChevronLeft, Menu, MessageSquare, Plus, Trash2, X, PanelLeftClose, PanelLeft, Settings, LogOut, SquarePen, Sparkles } from 'lucide-react';
+import { ChevronLeft, Menu, MessageSquare, Plus, Trash2, X, PanelLeftClose, PanelLeft, Settings, LogOut, SquarePen, Sparkles, Edit2, Share2, Copy, Check } from 'lucide-react';
 import { UserButton, SignedIn, SignedOut, SignInButton, useAuth } from "@clerk/nextjs";
 import clsx from 'clsx';
 import { db, Chat, Message } from '@/lib/db';
@@ -65,6 +65,13 @@ export function ChatInterface() {
     const [isLoading, setIsLoading] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [input, setInput] = useState('');
+
+    // Rename & Share state
+    const [renameModalOpen, setRenameModalOpen] = useState(false);
+    const [shareModalOpen, setShareModalOpen] = useState(false);
+    const [newTitle, setNewTitle] = useState('');
+    const [shareUrl, setShareUrl] = useState('');
+    const [copied, setCopied] = useState(false);
 
     // Scroll ref
     const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -182,13 +189,20 @@ export function ChatInterface() {
     const fetchChatMessages = async (chatId: string) => {
         setIsLoading(true);
         setActiveChatId(chatId);
+
+        // CRITICAL: Clear chat history BEFORE loading to prevent duplicates
+        setChatHistory([]);
+
         // On mobile, close sidebar when selecting chat
         if (isMobile) setIsSidebarOpen(false);
 
         try {
             const res = await fetch(`/api/chats/${chatId}`);
             if (res.ok) {
-                const messages: any[] = await res.json();
+                const data = await res.json();
+                // Handle response structure: { messages: [...] }
+                const messages: any[] = data.messages || data || [];
+
                 // Transform flat messages to turns
                 const turns: ChatTurn[] = [];
                 let currentTurn: ChatTurn | null = null;
@@ -209,6 +223,8 @@ export function ChatInterface() {
                     }
                 });
                 if (currentTurn) turns.push(currentTurn);
+
+                // REPLACE state, don't append
                 setChatHistory(turns);
                 setTimeout(scrollToBottom, 100);
             } else {
@@ -475,10 +491,61 @@ export function ChatInterface() {
         }
     };
 
+    const handleRenameChat = async () => {
+        if (!activeChatId || !newTitle.trim()) return;
+
+        try {
+            const res = await fetch(`/api/chats/${activeChatId}/rename`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title: newTitle.trim() })
+            });
+
+            if (res.ok) {
+                // Update local state
+                setChats(prev => prev.map(c =>
+                    c.id === activeChatId ? { ...c, title: newTitle.trim() } : c
+                ));
+                setRenameModalOpen(false);
+                setNewTitle('');
+            }
+        } catch (error) {
+            console.error('Failed to rename chat:', error);
+        }
+    };
+
+    const handleShareChat = async () => {
+        if (!activeChatId) return;
+
+        try {
+            const res = await fetch(`/api/chats/${activeChatId}/share`, {
+                method: 'POST'
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                setShareUrl(data.shareUrl);
+                setShareModalOpen(true);
+            }
+        } catch (error) {
+            console.error('Failed to create share link:', error);
+        }
+    };
+
+    const handleCopyShareUrl = async () => {
+        try {
+            await navigator.clipboard.writeText(shareUrl);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        } catch (error) {
+            console.error('Failed to copy:', error);
+        }
+    };
+
     if (!isLoaded) return <div className="bg-[#0B0B0B] h-screen w-full flex items-center justify-center"></div>;
 
     return (
-        <div className="flex h-screen w-full bg-[#0B0B0B] text-zinc-100 overflow-hidden relative selection:bg-blue-500/30">
+        <div className="flex h-full w-full bg-[#0B0B0B] text-zinc-100 relative selection:bg-blue-500/30">
 
             {/* Sidebar Desktop */}
             <aside
@@ -489,11 +556,11 @@ export function ChatInterface() {
             >
                 <div className="flex flex-col h-full">
                     {/* Header Padded */}
-                    <div className="h-14 flex items-center justify-between px-3 border-b border-white/5">
+                    <div className="min-h-[56px] flex items-center justify-between px-3 border-b border-white/5">
                         {isSidebarOpen ? (
                             <button
                                 onClick={handleNewChat}
-                                className="flex-1 flex items-center gap-2 px-3 py-2 bg-white/5 hover:bg-white/10 text-zinc-200 rounded-lg transition-colors text-sm font-medium"
+                                className="flex-1 flex items-center gap-2 px-3 py-2 bg-white/5 hover:bg-white/10 text-zinc-200 rounded-lg transition-colors text-sm font-medium touch-manipulation min-h-[44px]"
                             >
                                 <SquarePen className="w-4 h-4" />
                                 <span className="truncate">New Chat</span>
@@ -501,7 +568,7 @@ export function ChatInterface() {
                         ) : (
                             <button
                                 onClick={handleNewChat}
-                                className="p-2 hover:bg-white/5 rounded-lg text-zinc-400 hover:text-white transition-colors mx-auto"
+                                className="p-2 hover:bg-white/5 rounded-lg text-zinc-400 hover:text-white transition-colors mx-auto min-h-[44px] min-w-[44px] flex items-center justify-center touch-manipulation"
                                 title="New Chat"
                             >
                                 <SquarePen className="w-5 h-5" />
@@ -509,7 +576,7 @@ export function ChatInterface() {
                         )}
 
                         {isSidebarOpen && (
-                            <button onClick={toggleSidebar} className="p-2 text-zinc-500 hover:text-white transition-colors">
+                            <button onClick={toggleSidebar} className="p-2 text-zinc-500 hover:text-white transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center touch-manipulation">
                                 <PanelLeftClose className="w-4 h-4" />
                             </button>
                         )}
@@ -592,20 +659,61 @@ export function ChatInterface() {
 
             {/* Mobile Sidebar Overlay */}
             {isMobile && isSidebarOpen && (
-                <div className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm md:hidden" onClick={() => setIsSidebarOpen(false)}>
-                    <div className="fixed inset-y-0 left-0 w-[280px] bg-[#121212] flex flex-col z-50 transform transition-transform border-r border-white/5 shadow-2xl" onClick={e => e.stopPropagation()}>
-                        {/* Mobile Sidebar Content is simpler duplication for safety */}
-                        <div className="p-4 border-b border-white/5 flex justify-between items-center">
+                <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm md:hidden" onClick={() => setIsSidebarOpen(false)}>
+                    <div
+                        className="fixed inset-y-0 left-0 w-[280px] bg-[#121212] flex flex-col z-50 transform transition-transform border-r border-white/5 shadow-2xl animate-in slide-in-from-left duration-200"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        {/* Mobile Sidebar Content */}
+                        <div className="p-4 border-b border-white/5 flex justify-between items-center min-h-[56px]">
                             <span className="font-semibold text-zinc-200">Menu</span>
-                            <button onClick={() => setIsSidebarOpen(false)} className="text-zinc-500"><X size={20} /></button>
+                            <button
+                                onClick={() => setIsSidebarOpen(false)}
+                                className="text-zinc-500 p-2 min-h-[44px] min-w-[44px] flex items-center justify-center touch-manipulation"
+                            >
+                                <X size={20} />
+                            </button>
                         </div>
-                        <div className="p-4">
-                            <button onClick={handleNewChat} className="w-full py-2 bg-white text-black rounded-lg font-medium mb-4">New Chat</button>
-                            {chats.map((chat: any) => (
-                                <div key={chat.id} onClick={() => fetchChatMessages(chat.id)} className="py-3 text-zinc-400 border-b border-white/5 truncate">
-                                    {chat.title || "New Chat"}
-                                </div>
-                            ))}
+                        <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+                            <button
+                                onClick={() => {
+                                    handleNewChat();
+                                    setIsSidebarOpen(false);
+                                }}
+                                className="w-full py-3 bg-white text-black rounded-lg font-medium mb-4 flex items-center justify-center gap-2 touch-manipulation shadow-md active:scale-[0.98] transition-transform"
+                            >
+                                <SquarePen size={18} />
+                                New Chat
+                            </button>
+                            <div className="space-y-1">
+                                {chats.map((chat: any) => (
+                                    <button
+                                        key={chat.id}
+                                        onClick={() => {
+                                            fetchChatMessages(chat.id);
+                                            setIsSidebarOpen(false);
+                                        }}
+                                        className={clsx(
+                                            "w-full text-left py-3 px-3 rounded-lg text-sm truncate transition-colors touch-manipulation",
+                                            activeChatId === chat.id
+                                                ? "bg-[#1C1C1C] text-zinc-100 font-medium"
+                                                : "text-zinc-400 hover:bg-white/5"
+                                        )}
+                                    >
+                                        {chat.title || "New Chat"}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                        {/* Mobile Footer */}
+                        <div className="p-4 border-t border-white/5 space-y-2 bg-[#121212]">
+                            <a href="/privacy-policy" className="flex items-center gap-3 px-3 py-3 text-sm text-zinc-500 hover:text-white rounded-lg transition-colors touch-manipulation">
+                                <Settings className="w-4 h-4" />
+                                Privacy & Settings
+                            </a>
+                            <div className="px-3 py-2">
+                                <UserButton />
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -630,18 +738,42 @@ export function ChatInterface() {
                             isPremium={isPremium}
                         />
                     </div>
+
+                    {/* Chat Actions */}
+                    {activeChatId && (
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => {
+                                    const chat = chats.find(c => c.id === activeChatId);
+                                    setNewTitle(chat?.title || '');
+                                    setRenameModalOpen(true);
+                                }}
+                                className="p-2 text-zinc-500 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+                                title="Rename chat"
+                            >
+                                <Edit2 className="w-4 h-4" />
+                            </button>
+                            <button
+                                onClick={handleShareChat}
+                                className="p-2 text-zinc-500 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+                                title="Share chat"
+                            >
+                                <Share2 className="w-4 h-4" />
+                            </button>
+                        </div>
+                    )}
                 </header>
 
-                {/* Messages Area - Centered and Clean */}
-                <div className="flex-1 overflow-y-auto w-full p-4 scroll-smooth custom-scrollbar">
-                    <div className="max-w-[850px] mx-auto flex flex-col min-h-full pb-8">
+                {/* Messages Area */}
+                <div className="flex-1 overflow-y-auto w-full px-4 md:px-6 lg:px-8 py-4 scroll-smooth custom-scrollbar relative">
+                    <div className="max-w-3xl mx-auto flex flex-col min-h-full pb-4">
 
-                        {chatHistory.length === 0 ? (
-                            <div className="flex-1 flex flex-col items-center justify-center text-center gap-6 opacity-0 animate-in fade-in slide-in-from-bottom-4 duration-700 fill-mode-forwards">
-                                <div className="relative w-[300px] h-[300px] mb-8 animate-in fade-in zoom-in duration-1000">
+                        {chatHistory.length === 0 && !activeChatId ? (
+                            <div className="flex-1 flex flex-col items-center justify-center text-center gap-6">
+                                <div className="relative w-[300px] h-[300px] mb-8">
                                     <div className="absolute inset-0 bg-blue-500/10 blur-[100px] rounded-full" />
                                     <img
-                                        src="/welcome-header.png"
+                                        src="/ai-welcome-icon.svg"
                                         alt="Universal AI"
                                         className="relative w-full h-full object-contain drop-shadow-2xl"
                                     />
@@ -695,23 +827,89 @@ export function ChatInterface() {
                     </div>
                 </div>
 
-                {/* Input Area - Sticky Bottom */}
-                <div className="p-4 pb-6 bg-gradient-to-t from-[#0B0B0B] via-[#0B0B0B] to-transparent z-20">
-                    <ChatInput
-                        input={input}
-                        handleInputChange={(e) => setInput(e.target.value)}
-                        handleSubmit={handleSubmit}
-                        isLoading={isLoading}
-                        disabled={selectedModelIds.length === 0}
-                    />
-                    <div className="text-center mt-3">
-                        <span className="text-[11px] text-zinc-600">
-                            Universal AI can make mistakes. Consider checking important information.
-                        </span>
+                {/* Sticky Input Area */}
+                <div className="sticky bottom-0 z-30 bg-[#0B0B0B] border-t border-white/5 px-4 md:px-6 lg:px-8 py-3 md:py-4 safe-bottom w-full">
+                    <div className="max-w-3xl mx-auto">
+                        <ChatInput
+                            input={input}
+                            handleInputChange={(e) => setInput(e.target.value)}
+                            handleSubmit={handleSubmit}
+                            isLoading={isLoading}
+                            disabled={selectedModelIds.length === 0}
+                        />
+                        <div className="text-center mt-2 pb-1">
+                            <p className="text-[10px] text-zinc-600">
+                                Universal AI can make mistakes. Consider checking important information.
+                            </p>
+                        </div>
                     </div>
                 </div>
 
             </main>
+
+            {/* Rename Modal */}
+            {renameModalOpen && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50" onClick={() => setRenameModalOpen(false)}>
+                    <div className="bg-[#1C1C1C] rounded-xl p-6 w-full max-w-md mx-4 border border-white/10" onClick={e => e.stopPropagation()}>
+                        <h3 className="text-lg font-semibold mb-4">Rename Chat</h3>
+                        <input
+                            type="text"
+                            value={newTitle}
+                            onChange={(e) => setNewTitle(e.target.value)}
+                            className="w-full bg-[#121212] border border-white/10 rounded-lg px-4 py-2 text-white outline-none focus:border-white/20 mb-4"
+                            placeholder="Enter new title"
+                            autoFocus
+                            onKeyDown={(e) => e.key === 'Enter' && handleRenameChat()}
+                        />
+                        <div className="flex gap-2 justify-end">
+                            <button
+                                onClick={() => setRenameModalOpen(false)}
+                                className="px-4 py-2 text-zinc-400 hover:text-white transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleRenameChat}
+                                className="px-4 py-2 bg-white text-black rounded-lg hover:bg-zinc-200 transition-colors font-medium"
+                            >
+                                Rename
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Share Modal */}
+            {shareModalOpen && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50" onClick={() => setShareModalOpen(false)}>
+                    <div className="bg-[#1C1C1C] rounded-xl p-6 w-full max-w-md mx-4 border border-white/10" onClick={e => e.stopPropagation()}>
+                        <h3 className="text-lg font-semibold mb-4">Share Chat</h3>
+                        <p className="text-sm text-zinc-400 mb-4">Anyone with this link can view this conversation</p>
+                        <div className="flex gap-2 mb-4">
+                            <input
+                                type="text"
+                                value={shareUrl}
+                                readOnly
+                                className="flex-1 bg-[#121212] border border-white/10 rounded-lg px-4 py-2 text-white text-sm"
+                            />
+                            <button
+                                onClick={handleCopyShareUrl}
+                                className="px-4 py-2 bg-white text-black rounded-lg hover:bg-zinc-200 transition-colors font-medium flex items-center gap-2"
+                            >
+                                {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                                {copied ? 'Copied' : 'Copy'}
+                            </button>
+                        </div>
+                        <button
+                            onClick={() => setShareModalOpen(false)}
+                            className="w-full px-4 py-2 text-zinc-400 hover:text-white transition-colors"
+                        >
+                            Close
+                        </button>
+                    </div>
+                </div>
+            )}
+
         </div>
     );
 }

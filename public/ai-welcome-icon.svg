@@ -1,0 +1,86 @@
+<svg width="300" height="300" viewBox="0 0 300 300" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Glow effect -->
+  <defs>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:0.3" />
+      <stop offset="100%" style="stop-color:#3b82f6;stop-opacity:0" />
+    </radialGradient>
+    <linearGradient id="sparkleGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#60a5fa" />
+      <stop offset="50%" style="stop-color:#3b82f6" />
+      <stop offset="100%" style="stop-color:#2563eb" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background glow -->
+  <circle cx="150" cy="150" r="120" fill="url(#glow)" />
+  
+  <!-- Main sparkle/star icon -->
+  <g transform="translate(150, 150)">
+    <!-- Large sparkle -->
+    <path d="M 0,-80 L 8,-8 L 80,0 L 8,8 L 0,80 L -8,8 L -80,0 L -8,-8 Z" 
+          fill="url(#sparkleGradient)" 
+          opacity="0.9">
+      <animateTransform
+        attributeName="transform"
+        attributeType="XML"
+        type="rotate"
+        from="0"
+        to="360"
+        dur="20s"
+        repeatCount="indefinite"/>
+    </path>
+    
+    <!-- Medium sparkle - top right -->
+    <path d="M 45,-45 L 48,-35 L 58,-32 L 48,-29 L 45,-19 L 42,-29 L 32,-32 L 42,-35 Z" 
+          fill="#60a5fa" 
+          opacity="0.7">
+      <animateTransform
+        attributeName="transform"
+        attributeType="XML"
+        type="rotate"
+        from="0"
+        to="-360"
+        dur="15s"
+        repeatCount="indefinite"/>
+    </path>
+    
+    <!-- Medium sparkle - bottom left -->
+    <path d="M -50,50 L -47,60 L -37,63 L -47,66 L -50,76 L -53,66 L -63,63 L -53,60 Z" 
+          fill="#93c5fd" 
+          opacity="0.7">
+      <animateTransform
+        attributeName="transform"
+        attributeType="XML"
+        type="rotate"
+        from="0"
+        to="360"
+        dur="18s"
+        repeatCount="indefinite"/>
+    </path>
+    
+    <!-- Small sparkle - top left -->
+    <path d="M -35,-60 L -33,-55 L -28,-53 L -33,-51 L -35,-46 L -37,-51 L -42,-53 L -37,-55 Z" 
+          fill="#dbeafe" 
+          opacity="0.8"/>
+    
+    <!-- Small sparkle - bottom right -->
+    <path d="M 60,40 L 62,45 L 67,47 L 62,49 L 60,54 L 58,49 L 53,47 L 58,45 Z" 
+          fill="#dbeafe" 
+          opacity="0.8"/>
+  </g>
+  
+  <!-- Particles -->
+  <circle cx="80" cy="100" r="2" fill="#60a5fa" opacity="0.5">
+    <animate attributeName="opacity" values="0.5;1;0.5" dur="2s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="220" cy="120" r="2" fill="#93c5fd" opacity="0.5">
+    <animate attributeName="opacity" values="0.5;1;0.5" dur="3s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="100" cy="220" r="2" fill="#dbeafe" opacity="0.5">
+    <animate attributeName="opacity" values="0.5;1;0.5" dur="2.5s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="200" cy="200" r="2" fill="#60a5fa" opacity="0.5">
+    <animate attributeName="opacity" values="0.5;1;0.5" dur="3.5s" repeatCount="indefinite"/>
+  </circle>
+</svg>

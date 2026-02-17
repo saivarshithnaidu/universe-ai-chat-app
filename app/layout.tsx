@@ -19,29 +19,73 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    template: "%s | UniversalAI",
-    default: "UniversalAI – AI Chat Platform",
+    template: "%s | Universal AI",
+    default: "Universal AI – Multi Model AI Chat Platform",
   },
-  description: "UniversalAI is an AI-powered chat platform built with Next.js, Clerk authentication, and modern cloud infrastructure.",
+  description: "Universal AI lets you compare GPT, Gemini, Claude and open AI models side-by-side in one powerful platform. Experience the future of AI chat.",
+  keywords: [
+    "AI Chat",
+    "GPT Comparison",
+    "Claude AI",
+    "Gemini AI",
+    "Multi Model AI Platform",
+    "SaaS AI",
+    "AI Assistant",
+    "OpenAI",
+    "Artificial Intelligence"
+  ],
+  authors: [{ name: "Universal AI" }],
+  creator: "Universal AI",
+  publisher: "Universal AI",
+  viewport: {
+    width: 'device-width',
+    initialScale: 1,
+    maximumScale: 5,
+    userScalable: true,
+  },
   robots: {
     index: true,
     follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+    },
   },
   openGraph: {
-    title: "UniversalAI – AI Chat Platform",
-    description: "UniversalAI is an AI-powered chat platform built with Next.js, Clerk authentication, and modern cloud infrastructure.",
-    url: "https://universalsai.co.in",
-    siteName: "UniversalAI",
+    title: "Universal AI – Multi Model AI Chat Platform",
+    description: "Compare GPT, Gemini, Claude and open AI models side-by-side in one powerful platform.",
+    url: "https://universalai.co.in",
+    siteName: "Universal AI",
     type: "website",
+    locale: "en_US",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Universal AI - Multi Model AI Chat Platform",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
+    title: "Universal AI – Multi Model AI Chat Platform",
+    description: "Compare GPT, Gemini, Claude and open AI models side-by-side in one powerful platform.",
+    images: ["/og-image.png"],
+    creator: "@universalai",
   },
-  viewport: {
-    width: "device-width",
-    initialScale: 1,
+  verification: {
+    google: "google-site-verification-code",
   },
 };
+
+export function generateViewport() {
+  return {
+    width: "device-width",
+    initialScale: 1,
+    maximumScale: 1,
+  };
+}
 
 export default function RootLayout({
   children,

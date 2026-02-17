@@ -1,15 +1,15 @@
 import { SignUp } from "@clerk/nextjs";
 import { dark } from "@clerk/themes";
 
-export default function Page() {
+export default function SignUpPage() {
     return (
-        <div className="flex min-h-screen items-center justify-center">
+        <div className="flex min-h-screen items-center justify-center bg-[#0B0B0B]">
             <SignUp
-                routing="path"
-                path="/sign-up"
                 appearance={{
-                    baseTheme: dark
+                    baseTheme: dark,
                 }}
+                forceRedirectUrl="/app"
+                signInUrl="/sign-in"
             />
         </div>
     );

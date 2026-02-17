@@ -1,5 +1,6 @@
 import { auth } from '@clerk/nextjs/server';
 import { db } from '@/lib/db';
+import { handleApiError } from '@/lib/error-handler';
 
 export async function GET(req: Request) {
     try {
@@ -27,7 +28,7 @@ export async function GET(req: Request) {
         });
 
     } catch (error: any) {
-        console.error("User API Error:", error);
-        return Response.json({ error: "Internal Server Error" }, { status: 500 });
+        const errorResponse = handleApiError(error, 'USER_API');
+        return Response.json(errorResponse, { status: 500 });
     }
 }

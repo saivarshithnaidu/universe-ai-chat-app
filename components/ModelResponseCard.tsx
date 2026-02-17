@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { AIModel } from '@/lib/models';
 import { cn } from '@/lib/utils';
 import { Bot, RefreshCw, AlertTriangle, CheckCircle2, Loader2, Copy, Check } from 'lucide-react';
+import { stripMarkdown } from '@/lib/markdown-stripper';
 
 interface ModelResponseCardProps {
     model: AIModel;
@@ -92,7 +93,7 @@ export function ModelResponseCard({ model, messages, isLoading, error, status, n
             </div>
 
             {/* Content Area */}
-            <div className="text-[15px] leading-relaxed text-zinc-100 font-normal prose-invert max-w-none">
+            <div className="text-[15px] leading-[1.7] text-zinc-100 font-normal prose-invert max-w-none px-1 py-1 break-words overflow-wrap-anywhere">
                 {error || status === 'failed' ? (
                     <div className="flex flex-col items-start gap-2 py-2">
                         <p className="text-sm text-red-400">{error || "Response failed."}</p>
@@ -107,7 +108,7 @@ export function ModelResponseCard({ model, messages, isLoading, error, status, n
                         )}
                     </div>
                 ) : (
-                    <div className="whitespace-pre-wrap">{content}</div>
+                    <div className="whitespace-pre-line">{stripMarkdown(content)}</div>
                 )}
             </div>
         </div>
