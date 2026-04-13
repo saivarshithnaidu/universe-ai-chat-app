@@ -1,12 +1,14 @@
 import { db } from '@/lib/db';
-import { auth } from '@clerk/nextjs/server';
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth";
 
 export async function GET(
     req: Request,
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const { userId } = await auth();
+        const session = await getServerSession(authOptions);
+        const userId = (session?.user as any)?.id;
         if (!userId) {
             return Response.json({ error: 'Unauthorized' }, { status: 401 });
         }
@@ -38,7 +40,8 @@ export async function DELETE(
     }
 
     try {
-        const { userId } = await auth();
+        const session = await getServerSession(authOptions);
+        const userId = (session?.user as any)?.id;
         if (!userId) {
             return Response.json({ error: "Unauthorized" }, { status: 401 });
         }

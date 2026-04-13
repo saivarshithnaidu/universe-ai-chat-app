@@ -1,5 +1,6 @@
 import { db } from '@/lib/db';
-import { auth } from '@clerk/nextjs/server';
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth";
 
 export async function GET() {
     // 1. Environment Safety
@@ -13,7 +14,8 @@ export async function GET() {
 
     try {
         // 2. Auth Safety
-        const { userId } = await auth();
+        const session = await getServerSession(authOptions);
+        const userId = (session?.user as any)?.id;
         if (!userId) {
             return Response.json(
                 { error: "Unauthorized" },
@@ -22,7 +24,7 @@ export async function GET() {
         }
 
         // 3. Database Query
-        const chats = await db.getUserChats(userId);
+        const chats = await db.getChats(userId);
 
         // 4. Response Format
         return Response.json(chats);
@@ -43,12 +45,13 @@ export async function DELETE() {
     }
 
     try {
-        const { userId } = await auth();
+        const session = await getServerSession(authOptions);
+        const userId = (session?.user as any)?.id;
         if (!userId) {
             return Response.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        await db.deleteAllChats(userId);
+        const res = await db.query(`DELETE FROM chats WHERE user_id = $1`, [userId]);
 
         return Response.json({ success: true });
     } catch (error: any) {

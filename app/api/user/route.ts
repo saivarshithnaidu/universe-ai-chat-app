@@ -1,10 +1,13 @@
-import { auth } from '@clerk/nextjs/server';
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth";
 import { db } from '@/lib/db';
 import { handleApiError } from '@/lib/error-handler';
 
 export async function GET(req: Request) {
     try {
-        const { userId } = await auth();
+        const session = await getServerSession(authOptions);
+        const userId = (session?.user as any)?.id;
+        
         if (!userId) {
             return Response.json({ error: "Unauthorized" }, { status: 401 });
         }

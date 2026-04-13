@@ -1,28 +1,18 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import { ClerkProvider } from "@clerk/nextjs";
 import Script from "next/script";
 import "./globals.css";
-import Footer from "@/components/Footer";
 import { AnalyticsListener } from "@/components/AnalyticsListener";
-
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+import { Providers } from "@/components/Providers";
 
 export const metadata: Metadata = {
   title: {
-    template: "%s | Universal AI",
-    default: "Universal AI – Multi Model AI Chat Platform",
+    template: "%s | Universe AI",
+    default: "Universe AI – Compare GPT-4o, Claude 3.5 & Gemini Pro Side-by-Side",
   },
-  description: "Universal AI lets you compare GPT, Gemini, Claude and open AI models side-by-side in one powerful platform. Experience the future of AI chat.",
+  description: "Universe AI lets you compare GPT, Gemini, Claude and open AI models side-by-side in one powerful platform. Experience the future of AI chat.",
+  icons: {
+    icon: "/favicon.svg",
+  },
   keywords: [
     "AI Chat",
     "GPT Comparison",
@@ -34,15 +24,9 @@ export const metadata: Metadata = {
     "OpenAI",
     "Artificial Intelligence"
   ],
-  authors: [{ name: "Universal AI" }],
-  creator: "Universal AI",
-  publisher: "Universal AI",
-  viewport: {
-    width: 'device-width',
-    initialScale: 1,
-    maximumScale: 5,
-    userScalable: true,
-  },
+  authors: [{ name: "Universe AI" }],
+  creator: "Universe AI",
+  publisher: "Universe AI",
   robots: {
     index: true,
     follow: true,
@@ -52,10 +36,10 @@ export const metadata: Metadata = {
     },
   },
   openGraph: {
-    title: "Universal AI – Multi Model AI Chat Platform",
+    title: "Universe AI – Multi Model AI Chat Platform",
     description: "Compare GPT, Gemini, Claude and open AI models side-by-side in one powerful platform.",
-    url: "https://universalai.co.in",
-    siteName: "Universal AI",
+    url: "https://universeai.dev",
+    siteName: "Universe AI",
     type: "website",
     locale: "en_US",
     images: [
@@ -63,19 +47,12 @@ export const metadata: Metadata = {
         url: "/og-image.png",
         width: 1200,
         height: 630,
-        alt: "Universal AI - Multi Model AI Chat Platform",
+        alt: "Universe AI - Multi Model AI Chat Platform",
       },
     ],
   },
-  twitter: {
-    card: "summary_large_image",
-    title: "Universal AI – Multi Model AI Chat Platform",
-    description: "Compare GPT, Gemini, Claude and open AI models side-by-side in one powerful platform.",
-    images: ["/og-image.png"],
-    creator: "@universalai",
-  },
-  verification: {
-    google: "google-site-verification-code",
+  alternates: {
+    canonical: "https://universeai.dev",
   },
 };
 
@@ -93,11 +70,22 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <ClerkProvider>
-      <html lang="en" suppressHydrationWarning>
-        <body
-          className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-        >
+    <Providers>
+      <html lang="en" className="dark" suppressHydrationWarning>
+        <head>
+          <link rel="preconnect" href="https://fonts.googleapis.com" />
+          <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+          <link
+            href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Fira+Code:wght@400;500&display=swap"
+            rel="stylesheet"
+          />
+          <Script
+            id="razorpay-checkout-js"
+            src="https://checkout.razorpay.com/v1/checkout.js"
+            strategy="beforeInteractive"
+          />
+        </head>
+        <body className="antialiased bg-zinc-950 text-zinc-50 min-h-screen">
           <Script
             src="https://www.googletagmanager.com/gtag/js?id=G-16JVGT9WRQ"
             strategy="afterInteractive"
@@ -107,15 +95,13 @@ export default function RootLayout({
               window.dataLayer = window.dataLayer || [];
               function gtag(){dataLayer.push(arguments);}
               gtag('js', new Date());
-
               gtag('config', 'G-16JVGT9WRQ');
             `}
           </Script>
           <AnalyticsListener />
           {children}
-          <Footer />
         </body>
       </html>
-    </ClerkProvider>
+    </Providers>
   );
 }

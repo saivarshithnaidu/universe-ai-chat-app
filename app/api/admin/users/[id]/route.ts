@@ -1,6 +1,7 @@
 import { requireAdmin, logAdminAction } from '@/lib/admin';
 import { adminDb } from '@/lib/admin-db';
-import { auth } from '@clerk/nextjs/server';
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth";
 
 export async function PATCH(
     req: Request,
@@ -8,7 +9,8 @@ export async function PATCH(
 ) {
     try {
         await requireAdmin();
-        const { userId: adminId } = await auth();
+        const session = await getServerSession(authOptions);
+        const adminId = (session?.user as any)?.id;
         const { id: targetUserId } = await params;
         const body = await req.json();
 

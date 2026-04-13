@@ -1,7 +1,16 @@
 import { Pool } from 'pg';
+import crypto from 'crypto';
 
-// Smart SSL: Disable SSL for localhost/127.0.0.1 to fix "server does not support SSL"
-// Enable SSL for Neon (remote)
+// Encryption configuration for API keys
+const ALGORITHM = 'aes-256-cbc';
+const ENCRYPTION_KEY = process.env.NEXTAUTH_SECRET ? crypto.createHash('sha256').update(String(process.env.NEXTAUTH_SECRET)).digest('base64').substring(0, 32) : '32-char-encryption-key-fallback'; 
+const IV_LENGTH = 16;
+
+// Bypassing SSL self-signed certificate issues for local development with remote databases (Supabase/Neon)
+if (process.env.NODE_ENV !== 'production') {
+    process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+}
+
 const isLocal = process.env.DATABASE_URL?.includes('localhost') || process.env.DATABASE_URL?.includes('127.0.0.1');
 
 const pool = new Pool({
@@ -12,12 +21,19 @@ const pool = new Pool({
 });
 
 // Ensure single instance in dev used by Next.js hot reload
-let dbPool: Pool;
+export let dbPool: Pool;
 if (process.env.NODE_ENV === 'production') {
     dbPool = pool;
 } else {
     if (!(global as any).dbPool) {
         (global as any).dbPool = pool;
+        // Test connection and Init Schema in dev
+        pool.query('SELECT 1').then(() => {
+            console.log("✅ Database Connected Successfully (SSL Bypassed)");
+            db.initSchema().catch(e => console.error("Schema Init Error:", e));
+        }).catch(err => {
+            console.error("❌ Database Connection Failed:", err.message);
+        });
     }
     dbPool = (global as any).dbPool;
 }
@@ -27,6 +43,8 @@ export interface Chat {
     user_id: string;
     title: string | null;
     created_at: Date;
+    project_files?: any;
+    project_framework?: string;
 }
 
 export interface Message {
@@ -35,6 +53,8 @@ export interface Message {
     role: 'user' | 'assistant';
     model: string | null;
     content: string;
+    status: 'success' | 'failed' | 'busy';
+    fallback: boolean;
     created_at: Date;
 }
 
@@ -51,12 +71,44 @@ export const db = {
     async initSchema() {
         const queries = [
             `CREATE TABLE IF NOT EXISTS users (
-                id TEXT PRIMARY KEY,
+                id TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+                name TEXT,
+                email TEXT UNIQUE,
+                "emailVerified" TIMESTAMP,
+                email_verified TIMESTAMP,
+                image TEXT,
                 created_at TIMESTAMP DEFAULT now(),
                 is_premium BOOLEAN DEFAULT FALSE,
                 premium_trial_used INTEGER DEFAULT 0,
                 total_messages INTEGER DEFAULT 0,
-                last_message_at TIMESTAMP
+                last_message_at TIMESTAMP,
+                plan TEXT DEFAULT 'free',
+                daily_usage_count INTEGER DEFAULT 0,
+                token_usage INTEGER DEFAULT 0,
+                subscription_start TIMESTAMP,
+                subscription_end TIMESTAMP,
+                "resumeText" TEXT
+            );`,
+            `CREATE TABLE IF NOT EXISTS accounts (
+                id TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+                user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                type TEXT NOT NULL,
+                provider TEXT NOT NULL,
+                provider_account_id TEXT NOT NULL,
+                refresh_token TEXT,
+                access_token TEXT,
+                expires_at BIGINT,
+                token_type TEXT,
+                scope TEXT,
+                id_token TEXT,
+                session_state TEXT,
+                UNIQUE (provider, provider_account_id)
+            );`,
+            `CREATE TABLE IF NOT EXISTS sessions (
+                id TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+                session_token TEXT UNIQUE NOT NULL,
+                user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                expires TIMESTAMP NOT NULL
             );`,
             `CREATE TABLE IF NOT EXISTS chats (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -65,47 +117,92 @@ export const db = {
                 share_token TEXT UNIQUE,
                 is_public BOOLEAN DEFAULT FALSE,
                 shared_at TIMESTAMP,
+                project_files JSONB DEFAULT '{}',
+                project_framework TEXT DEFAULT 'react',
                 created_at TIMESTAMP DEFAULT now()
             );`,
+            `-- ensure project_framework exists
+            DO $$ BEGIN
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='chats' AND column_name='project_framework') THEN
+                    ALTER TABLE chats ADD COLUMN project_framework TEXT DEFAULT 'react';
+                END IF;
+            END $$;`,
             `CREATE TABLE IF NOT EXISTS messages (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                 chat_id UUID REFERENCES chats(id) ON DELETE CASCADE,
                 role TEXT CHECK (role IN ('user', 'assistant')),
                 model TEXT,
                 content TEXT,
+                status TEXT DEFAULT 'success',
+                fallback BOOLEAN DEFAULT FALSE,
                 created_at TIMESTAMP DEFAULT now()
             );`,
-            `CREATE TABLE IF NOT EXISTS rate_limits (
-                key TEXT PRIMARY KEY,
-                count INTEGER DEFAULT 0,
-                expires_at TIMESTAMP
+            `CREATE TABLE IF NOT EXISTS usage_logs (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+                model_used TEXT,
+                tokens_used INTEGER,
+                timestamp TIMESTAMP DEFAULT now()
             );`,
-            `CREATE INDEX IF NOT EXISTS idx_chats_user_id ON chats(user_id);`,
-            `CREATE INDEX IF NOT EXISTS idx_messages_chat_id ON messages(chat_id);`
+            `CREATE TABLE IF NOT EXISTS user_tools (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+                tool_key TEXT NOT NULL,
+                api_key TEXT,
+                connected_at TIMESTAMP DEFAULT now(),
+                UNIQUE(user_id, tool_key)
+            );`,
+            `CREATE TABLE IF NOT EXISTS billing_details (
+                user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+                name TEXT NOT NULL,
+                phone TEXT NOT NULL,
+                address_line1 TEXT NOT NULL,
+                address_line2 TEXT,
+                area TEXT NOT NULL,
+                city TEXT NOT NULL,
+                state TEXT NOT NULL,
+                pincode TEXT NOT NULL,
+                country TEXT DEFAULT 'India',
+                updated_at TIMESTAMP DEFAULT now()
+            );`,
+            `CREATE TABLE IF NOT EXISTS rate_limits (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                key TEXT NOT NULL,
+                timestamp TIMESTAMP DEFAULT now()
+            );`,
+            `CREATE INDEX IF NOT EXISTS idx_rate_limits_key_timestamp ON rate_limits(key, timestamp);`,
+            `ALTER TABLE chats ADD COLUMN IF NOT EXISTS project_files JSONB DEFAULT '{}';`,
+            `ALTER TABLE users ADD COLUMN IF NOT EXISTS "resumeText" TEXT;`
         ];
 
         for (const query of queries) {
-            await dbPool.query(query);
+            try {
+                await dbPool.query(query);
+            } catch (e: any) {
+                if (!e.message.includes('already exists')) {
+                    console.warn("Schema Init Warning:", e.message);
+                }
+            }
         }
-        console.log("Database schema initialized.");
     },
 
     async upsertUser(id: string, email?: string) {
-        // Initial upsert
-        await dbPool.query(
-            `INSERT INTO users (id) VALUES ($1) ON CONFLICT (id) DO NOTHING`,
-            [id]
-        );
-        // Ensure columns exist (for existing DBs)
-        try {
-            await dbPool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_premium BOOLEAN DEFAULT FALSE;`);
-            await dbPool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS premium_trial_used INTEGER DEFAULT 0;`);
-            await dbPool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS total_messages INTEGER DEFAULT 0;`);
-            await dbPool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_message_at TIMESTAMP;`);
-            await dbPool.query(`CREATE TABLE IF NOT EXISTS rate_limits (key TEXT PRIMARY KEY, count INTEGER DEFAULT 0, expires_at TIMESTAMP);`);
-        } catch (e) {
-            // Ignore error if columns exist
+        if (email) {
+            await dbPool.query(
+                `INSERT INTO users (id, email) VALUES ($1, $2) ON CONFLICT (id) DO UPDATE SET email = EXCLUDED.email`,
+                [id, email]
+            );
+        } else {
+            await dbPool.query(
+                `INSERT INTO users (id) VALUES ($1) ON CONFLICT (id) DO NOTHING`,
+                [id]
+            );
         }
+    },
+
+    async getUser(id: string) {
+        const res = await dbPool.query(`SELECT * FROM users WHERE id = $1`, [id]);
+        return res.rows[0];
     },
 
     async getChats(userId: string): Promise<Chat[]> {
@@ -116,72 +213,6 @@ export const db = {
         return res.rows;
     },
 
-    async getChat(chatId: string): Promise<Chat | null> {
-        const res = await dbPool.query(
-            `SELECT * FROM chats WHERE id = $1`,
-            [chatId]
-        );
-        return res.rows[0] || null;
-    },
-
-    async getUser(id: string) {
-        const res = await dbPool.query(
-            `SELECT * FROM users WHERE id = $1`,
-            [id]
-        );
-        return res.rows[0];
-    },
-
-    async incrementTrialUsage(id: string) {
-        await dbPool.query(
-            `UPDATE users SET premium_trial_used = premium_trial_used + 1 WHERE id = $1`,
-            [id]
-        );
-    },
-
-    async incrementMessageCount(userId: string) {
-        await dbPool.query(
-            `UPDATE users SET total_messages = total_messages + 1, last_message_at = now() WHERE id = $1`,
-            [userId]
-        );
-    },
-
-    async deleteUser(userId: string) {
-        // Cascade delete will handle chats and messages if FKs set up correctly, 
-        // but explicit delete is safer ensuring user intent.
-        await dbPool.query(`DELETE FROM users WHERE id = $1`, [userId]);
-    },
-
-    // Simple Token Bucket / Fixed Window counter via DB
-    async checkRateLimit(key: string, limit: number, windowSeconds: number): Promise<{ success: boolean; remaining: number }> {
-        // PERMANENT BUCKET BYPASS: Temporarily disabled due to missing table
-        return { success: true, remaining: 100 };
-
-        /*
-        const now = new Date();
-        const expiresAt = new Date(now.getTime() + windowSeconds * 1000);
-
-        // Clean up expired
-        await dbPool.query(`DELETE FROM rate_limits WHERE key = $1 AND expires_at < $2`, [key, now]);
-
-        // Upsert counter
-        const res = await dbPool.query(
-            `INSERT INTO rate_limits (key, count, expires_at) 
-             VALUES ($1, 1, $2) 
-             ON CONFLICT (key) 
-             DO UPDATE SET count = rate_limits.count + 1 
-             RETURNING count`,
-            [key, expiresAt]
-        );
-
-        const count = res.rows[0].count;
-        return {
-            success: count <= limit,
-            remaining: Math.max(0, limit - count)
-        };
-        */
-    },
-
     async createChat(userId: string, title: string = 'New Chat'): Promise<Chat> {
         const res = await dbPool.query(
             `INSERT INTO chats (user_id, title) VALUES ($1, $2) RETURNING *`,
@@ -190,71 +221,206 @@ export const db = {
         return res.rows[0];
     },
 
-    async getUserChats(userId: string): Promise<Chat[]> {
+    async saveMessage(chatId: string, role: string, content: string, model: string = '', status: string = 'success', fallback: boolean = false) {
         const res = await dbPool.query(
-            `SELECT id, title, created_at FROM chats WHERE user_id = $1 ORDER BY created_at DESC`,
-            [userId]
-        );
-        return res.rows;
-    },
-
-    async saveMessage(chatId: string, role: string, content: string, model?: string): Promise<Message> {
-        const res = await dbPool.query(
-            `INSERT INTO messages (chat_id, role, content, model) VALUES ($1, $2, $3, $4) RETURNING *`,
-            [chatId, role, content, model]
+            `INSERT INTO messages (chat_id, role, content, model, status, fallback) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+            [chatId, role, content, model, status, fallback]
         );
         return res.rows[0];
     },
 
-    async getChatMessages(chatId: string, userId: string): Promise<Message[]> {
-        const res = await dbPool.query(
-            `SELECT m.* FROM messages m
-             JOIN chats c ON m.chat_id = c.id
-             WHERE m.chat_id = $1 AND c.user_id = $2
-             ORDER BY m.created_at ASC`,
-            [chatId, userId]
-        );
-        return res.rows;
+    async getChat(chatId: string): Promise<Chat | null> {
+        const res = await dbPool.query(`SELECT * FROM chats WHERE id = $1`, [chatId]);
+        return res.rows[0] || null;
     },
 
-    async deleteChat(chatId: string, userId: string): Promise<void> {
-        await dbPool.query(
-            `DELETE FROM chats WHERE id = $1 AND user_id = $2`,
-            [chatId, userId]
-        );
-    },
-
-    async deleteAllChats(userId: string): Promise<void> {
-        await dbPool.query(
-            `DELETE FROM chats WHERE user_id = $1`,
-            [userId]
-        );
-    },
-
-    async updateChatTitle(chatId: string, userId: string, title: string): Promise<void> {
+    async updateChatTitle(chatId: string, userId: string, title: string) {
         await dbPool.query(
             `UPDATE chats SET title = $1 WHERE id = $2 AND user_id = $3`,
             [title, chatId, userId]
         );
     },
 
-    async generateShareToken(chatId: string, userId: string): Promise<string> {
-        // Generate random token
-        const token = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-
+    async generateShareToken(chatId: string, userId: string) {
+        const token = crypto.randomBytes(16).toString('hex');
         await dbPool.query(
-            `UPDATE chats SET share_token = $1, is_public = TRUE, shared_at = now() WHERE id = $2 AND user_id = $3`,
+            `UPDATE chats SET share_token = $1, is_public = true, shared_at = now() WHERE id = $2 AND user_id = $3`,
             [token, chatId, userId]
         );
-
         return token;
     },
 
     async getChatByShareToken(token: string): Promise<Chat | null> {
         const res = await dbPool.query(
-            `SELECT * FROM chats WHERE share_token = $1 AND is_public = TRUE`,
+            `SELECT * FROM chats WHERE share_token = $1 AND is_public = true`,
             [token]
         );
         return res.rows[0] || null;
+    },
+
+    async deleteUser(userId: string) {
+        await dbPool.query(`DELETE FROM users WHERE id = $1`, [userId]);
+    },
+
+    async upgradeToPremium(userId: string, plan: string = 'pro') {
+        const isPremium = plan !== 'free';
+        await dbPool.query(
+            `UPDATE users SET plan = $1, is_premium = $2 WHERE id = $3`,
+            [plan, isPremium, userId]
+        );
+    },
+
+    async getChatMessages(chatId: string, userId: string): Promise<Message[]> {
+        const res = await dbPool.query(
+            `SELECT m.* FROM messages m 
+             JOIN chats c ON m.chat_id = c.id 
+             WHERE c.id = $1 AND c.user_id = $2 
+             ORDER BY m.created_at ASC`,
+            [chatId, userId]
+        );
+        return res.rows;
+    },
+
+    async deleteChat(chatId: string, userId: string) {
+        await dbPool.query(`DELETE FROM chats WHERE id = $1 AND user_id = $2`, [chatId, userId]);
+    },
+
+    async getUserResumeText(userId: string): Promise<string | null> {
+        const res = await dbPool.query(`SELECT "resumeText" FROM users WHERE id = $1`, [userId]);
+        return res.rows[0]?.resumeText || null;
+    },
+
+    async updateUserResume(userId: string, text: string) {
+        await dbPool.query(`UPDATE users SET "resumeText" = $1 WHERE id = $2`, [text, userId]);
+    },
+
+    async getUserTool(userId: string, toolKey: string) {
+        const res = await dbPool.query(
+            `SELECT * FROM user_tools WHERE user_id = $1 AND tool_key = $2`,
+            [userId, toolKey]
+        );
+        const row = res.rows[0];
+        if (!row || !row.api_key) return null;
+        
+        try {
+            const [ivHex, encryptedHex] = row.api_key.split(':');
+            const iv = Buffer.from(ivHex, 'hex');
+            const decipher = crypto.createDecipheriv(ALGORITHM, Buffer.from(ENCRYPTION_KEY), iv);
+            let decrypted = decipher.update(encryptedHex, 'hex', 'utf8');
+            decrypted += decipher.final('utf8');
+            return { ...row, api_key: decrypted };
+        } catch (e) {
+            return row;
+        }
+    },
+
+    async upsertUserTool(userId: string, toolKey: string, apiKey: string) {
+        const iv = crypto.randomBytes(IV_LENGTH);
+        const cipher = crypto.createCipheriv(ALGORITHM, Buffer.from(ENCRYPTION_KEY), iv);
+        let encrypted = cipher.update(apiKey, 'utf8', 'hex');
+        encrypted += cipher.final('hex');
+        const encryptedKey = `${iv.toString('hex')}:${encrypted}`;
+
+        await dbPool.query(
+            `INSERT INTO user_tools (user_id, tool_key, api_key)
+             VALUES ($1, $2, $3)
+             ON CONFLICT (user_id, tool_key) DO UPDATE SET 
+                api_key = EXCLUDED.api_key,
+                connected_at = now()`,
+            [userId, toolKey, encryptedKey]
+        );
+    },
+
+    async deleteUserTool(userId: string, toolKey: string) {
+        await dbPool.query(`DELETE FROM user_tools WHERE user_id = $1 AND tool_key = $2`, [userId, toolKey]);
+    },
+
+    async listUserTools(userId: string) {
+        const res = await dbPool.query(`SELECT tool_key, connected_at FROM user_tools WHERE user_id = $1`, [userId]);
+        return res.rows;
+    },
+
+    async saveUserTool(userId: string, toolKey: string, apiKey: string) {
+        return this.upsertUserTool(userId, toolKey, apiKey);
+    },
+
+    async updateChatProjectFiles(chatId: string, files: any) {
+        try {
+            await dbPool.query(
+                `UPDATE chats SET project_files = $1 WHERE id = $2`,
+                [JSON.stringify(files), chatId]
+            );
+        } catch (e: any) {
+            console.warn("[DB WARNING] Could not update project_files. Schema might be out of sync:", e.message);
+        }
+    },
+
+    async getChatProjectFiles(chatId: string) {
+        if (!chatId) return {};
+        try {
+            const res = await dbPool.query(
+                `SELECT project_files FROM chats WHERE id = $1`,
+                [chatId]
+            );
+            return res.rows[0]?.project_files || {};
+        } catch (e: any) {
+            console.warn("[DB WARNING] Could not fetch project_files. Schema might be out of sync:", e.message);
+            return {};
+        }
+    },
+
+    async logUsage(userId: string, modelUsed: string, tokensUsed: number) {
+        await dbPool.query(
+            `INSERT INTO usage_logs (user_id, model_used, tokens_used) VALUES ($1, $2, $3)`,
+            [userId, modelUsed, tokensUsed]
+        );
+    },
+
+    async saveBillingDetails(userId: string, data: any) {
+        await dbPool.query(
+            `INSERT INTO billing_details (user_id, name, phone, address_line1, address_line2, area, city, state, pincode, country, updated_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, now())
+             ON CONFLICT (user_id) DO UPDATE SET
+                name = EXCLUDED.name,
+                phone = EXCLUDED.phone,
+                address_line1 = EXCLUDED.address_line1,
+                address_line2 = EXCLUDED.address_line2,
+                area = EXCLUDED.area,
+                city = EXCLUDED.city,
+                state = EXCLUDED.state,
+                pincode = EXCLUDED.pincode,
+                country = EXCLUDED.country,
+                updated_at = now()`,
+            [userId, data.name, data.phone, data.address_line1, data.address_line2, data.area, data.city, data.state, data.pincode, data.country]
+        );
+    },
+
+    async getBillingDetails(userId: string) {
+        const res = await dbPool.query(`SELECT * FROM billing_details WHERE user_id = $1`, [userId]);
+        return res.rows[0] || null;
+    },
+
+    async checkRateLimit(key: string, limit: number, windowSeconds: number) {
+        try {
+            const now = new Date();
+            const windowStart = new Date(now.getTime() - (windowSeconds * 1000));
+            
+            // Clean old
+            await dbPool.query(`DELETE FROM rate_limits WHERE timestamp < $1`, [windowStart]);
+            
+            // Count current
+            const countRes = await dbPool.query(`SELECT COUNT(*) FROM rate_limits WHERE key = $1 AND timestamp >= $2`, [key, windowStart]);
+            const count = parseInt(countRes.rows[0].count);
+            
+            if (count < limit) {
+                await dbPool.query(`INSERT INTO rate_limits (key, timestamp) VALUES ($1, $2)`, [key, now]);
+                return { success: true, remaining: limit - count - 1 };
+            }
+            
+            return { success: false, remaining: 0 };
+        } catch (e: any) {
+            console.error("Rate Limit Error:", e.message);
+            return { success: true, remaining: 0 }; // Fail open to avoid blocking users
+        }
     }
 };

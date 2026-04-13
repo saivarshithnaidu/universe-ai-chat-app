@@ -1,4 +1,5 @@
-import { auth, currentUser } from '@clerk/nextjs/server';
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth";
 import { db } from '@/lib/db';
 import { adminDb } from '@/lib/admin-db';
 
@@ -7,7 +8,9 @@ import { adminDb } from '@/lib/admin-db';
  */
 export async function isAdmin(): Promise<boolean> {
     try {
-        const { userId } = await auth();
+        const session = await getServerSession(authOptions);
+        const userId = (session?.user as any)?.id;
+        
         if (!userId) return false;
 
         const user = await adminDb.getUserById(userId);
@@ -35,7 +38,9 @@ export async function requireAdmin() {
  */
 export async function getAdminUser() {
     try {
-        const { userId } = await auth();
+        const session = await getServerSession(authOptions);
+        const userId = (session?.user as any)?.id;
+        
         if (!userId) return null;
 
         const user = await adminDb.getUserById(userId);
@@ -52,21 +57,19 @@ export async function getAdminUser() {
 
 /**
  * Get the current user with full details
- * Syncs Clerk data with database
+ * Syncs user data with database
  */
 export async function getCurrentUserWithSync() {
     try {
-        const { userId } = await auth();
-        if (!userId) return null;
+        const session = await getServerSession(authOptions);
+        const userId = (session?.user as any)?.id;
+        if (!userId || !session?.user) return null;
 
-        const clerkUser = await currentUser();
-        if (!clerkUser) return null;
-
-        // Sync user data from Clerk to database
-        await db.upsertUser(userId, clerkUser.emailAddresses[0]?.emailAddress);
+        // Sync user data to database
+        await db.upsertUser(userId, session.user.email || '');
         await adminDb.updateUserFromClerk(userId, {
-            email: clerkUser.emailAddresses[0]?.emailAddress,
-            name: clerkUser.fullName || clerkUser.firstName || 'User',
+            email: session.user.email || '',
+            name: session.user.name || 'User',
         });
 
         return await adminDb.getUserById(userId);

@@ -1,289 +1,281 @@
 'use client';
 
-import { ArrowRight, Zap, Shield, BarChart3, Check, Sparkles } from 'lucide-react';
-import { SignedIn, SignedOut } from '@clerk/nextjs';
+import React from 'react';
+import dynamic from 'next/dynamic';
+import { motion } from 'framer-motion';
+import { ArrowRight, Check, Layers, GitCompare, ToggleLeft, Plug, Bot, Zap, FileText, Mail, Database, Cloud, Grid, Figma, Triangle, Slack, Github, Send, Palette } from 'lucide-react';
+import { useSession } from "next-auth/react";
+import CheckoutButton from '@/components/CheckoutButton';
+import Footer from '@/components/Footer';
+import { SplineDemo } from '@/components/ui/spline-demo';
+import { BackgroundPaths } from '@/components/ui/background-paths';
+import Pricing from '@/components/ui/pricing-component';
+import NeuralBackground from '@/components/ui/flow-field-background';
+
+// Dynamic import — Three.js uses browser APIs, cannot SSR
+const AnomalousMatterHero = dynamic(
+  () => import('@/components/ui/anomalous-matter-hero').then(m => ({ default: m.AnomalousMatterHero })),
+  { ssr: false, loading: () => <div className="w-full h-screen bg-[#09090b]" /> }
+);
+
+const fadeUp = {
+  hidden: { opacity: 0, y: 30 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.6 } }
+};
+const stagger = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.12 } }
+};
 
 export default function LandingPage() {
-  return (
-    <div className="bg-gradient-to-br from-[#0B0B0B] via-[#0F0F0F] to-[#0B0B0B] text-white">
-      {/* Background decoration */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl" />
-      </div>
+  const { status } = useSession();
+  const isAuthenticated = status === "authenticated";
 
-      {/* Navigation */}
-      <nav className="relative z-10 border-b border-white/5 bg-black/20 backdrop-blur-md sticky top-0">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-2">
-              <Sparkles className="w-6 h-6 text-blue-400" />
-              <span className="text-xl font-bold">Universal AI</span>
-            </div>
-            <div className="flex items-center gap-4">
-              <SignedOut>
-                <a
-                  href="/sign-in"
-                  className="text-zinc-400 hover:text-white transition-colors"
-                >
-                  Sign In
-                </a>
-                <a
-                  href="/sign-up"
-                  className="px-4 py-2 bg-white text-black rounded-lg hover:bg-zinc-200 transition-colors font-medium"
-                >
+  return (
+    <div className="min-h-screen bg-[#0a0a0a] text-white font-sans overflow-x-hidden selection:bg-purple-500/30">
+
+      {/* ── NAV ───────────────────────── */}
+      <nav className="fixed top-0 inset-x-0 z-50 border-b border-white/5 bg-[#0a0a0a]/80 backdrop-blur-xl">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+          <span className="text-lg font-bold tracking-tight">Universe AI</span>
+          <div className="flex items-center gap-3">
+            {!isAuthenticated ? (
+              <>
+                <a href="/login" className="text-sm text-zinc-400 hover:text-white transition-colors hidden sm:inline">Sign In</a>
+                <a href="/login" className="text-sm font-semibold px-4 py-2 bg-white text-black rounded-full hover:bg-zinc-200 transition-colors">
                   Start Free
                 </a>
-              </SignedOut>
-              <SignedIn>
-                <a
-                  href="/app"
-                  className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium"
-                >
-                  Open App
-                </a>
-              </SignedIn>
-            </div>
+              </>
+            ) : (
+              <a href="/app" className="text-sm font-semibold px-4 py-2.5 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-full hover:scale-105 transition-all">
+                Open App
+              </a>
+            )}
           </div>
         </div>
       </nav>
 
-      {/* Main Content */}
-      <main className="relative z-10">
-        {/* Hero Section */}
-        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-32 text-center">
-          <h1 className="text-5xl md:text-7xl font-bold mb-6 bg-gradient-to-r from-white via-blue-100 to-purple-100 bg-clip-text text-transparent">
-            Compare AI Models<br />Side-by-Side
-          </h1>
-          <p className="text-xl md:text-2xl text-zinc-400 mb-8 max-w-3xl mx-auto">
-            Universal AI lets you compare GPT, Gemini, Claude and open AI models in one powerful platform. Get the best answer, every time.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-            <a
-              href="/sign-up"
-              className="px-8 py-4 bg-white text-black rounded-xl hover:bg-zinc-200 transition-all font-semibold text-lg flex items-center gap-2 shadow-xl hover:shadow-2xl"
-            >
-              Start Free Now <ArrowRight className="w-5 h-5" />
-            </a>
-            <a
-              href="#features"
-              className="px-8 py-4 bg-white/5 backdrop-blur-sm text-white rounded-xl hover:bg-white/10 transition-all font-semibold text-lg border border-white/10"
-            >
-              Learn More
-            </a>
-          </div>
-          <p className="text-sm text-zinc-600 mt-6">No credit card required • Free to start</p>
-        </section>
+      <main>
 
-        {/* Features Section */}
-        <section id="features" className="scroll-mt-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
-          <h2 className="text-4xl md:text-5xl font-bold text-center mb-16">
-            Why Choose Universal AI?
-          </h2>
-          <div className="grid md:grid-cols-3 gap-8">
-            <article className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-8 hover:bg-white/10 transition-all">
-              <div className="w-12 h-12 bg-blue-500/10 rounded-xl flex items-center justify-center mb-6">
-                <BarChart3 className="w-6 h-6 text-blue-400" />
-              </div>
-              <h3 className="text-2xl font-semibold mb-4">Multi-Model Comparison</h3>
-              <p className="text-zinc-400">
-                Compare responses from GPT-4, Claude, Gemini, and more open-source models simultaneously. Find the best answer for your needs.
-              </p>
-            </article>
+        {/* ── HERO — Three.js Anomalous Matter ────────────────────── */}
+        <AnomalousMatterHero>
+          <motion.div
+            variants={stagger}
+            initial="hidden"
+            animate="visible"
+            className="max-w-5xl mx-auto px-6 text-center animate-fade-in-long"
+          >
+            <motion.div variants={fadeUp} className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 text-neutral-300 text-xs font-semibold mb-8 backdrop-blur-md">
+              <Zap className="w-3.5 h-3.5 text-purple-400" /> Now with 40+ Connectors
+            </motion.div>
 
-            <article className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-8 hover:bg-white/10 transition-all">
-              <div className="w-12 h-12 bg-purple-500/10 rounded-xl flex items-center justify-center mb-6">
-                <Zap className="w-6 h-6 text-purple-400" />
-              </div>
-              <h3 className="text-2xl font-semibold mb-4">Lightning Fast</h3>
-              <p className="text-zinc-400">
-                Get instant responses from multiple AI models with optimized performance and smart fallback systems.
-              </p>
-            </article>
-
-            <article className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-8 hover:bg-white/10 transition-all">
-              <div className="w-12 h-12 bg-green-500/10 rounded-xl flex items-center justify-center mb-6">
-                <Shield className="w-6 h-6 text-green-400" />
-              </div>
-              <h3 className="text-2xl font-semibold mb-4">Secure & Private</h3>
-              <p className="text-zinc-400">
-                Your conversations are encrypted and secure. We respect your privacy with enterprise-grade security.
-              </p>
-            </article>
-          </div>
-        </section>
-
-        {/* How It Works Section */}
-        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 bg-white/5">
-          <h2 className="text-4xl md:text-5xl font-bold text-center mb-16">
-            How It Works
-          </h2>
-          <div className="grid md:grid-cols-3 gap-12">
-            <div className="text-center">
-              <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-500 rounded-2xl flex items-center justify-center text-2xl font-bold mx-auto mb-6">
-                1
-              </div>
-              <h3 className="text-xl font-semibold mb-3">Sign Up Free</h3>
-              <p className="text-zinc-400">Create your account in seconds. No credit card required to start.</p>
-            </div>
-            <div className="text-center">
-              <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-500 rounded-2xl flex items-center justify-center text-2xl font-bold mx-auto mb-6">
-                2
-              </div>
-              <h3 className="text-xl font-semibold mb-3">Select Models</h3>
-              <p className="text-zinc-400">Choose up to 3 AI models to compare side-by-side.</p>
-            </div>
-            <div className="text-center">
-              <div className="w-16 h-16 bg-gradient-to-br from-pink-500 to-orange-500 rounded-2xl flex items-center justify-center text-2xl font-bold mx-auto mb-6">
-                3
-              </div>
-              <h3 className="text-xl font-semibold mb-3">Get Best Answers</h3>
-              <p className="text-zinc-400">Compare responses and choose the best answer for your needs.</p>
-            </div>
-          </div>
-        </section>
-
-        {/* Pricing Preview Section */}
-        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
-          <h2 className="text-4xl md:text-5xl font-bold text-center mb-16">
-            Simple Pricing
-          </h2>
-          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-            <article className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-8">
-              <h3 className="text-2xl font-semibold mb-2">Free</h3>
-              <div className="text-4xl font-bold mb-6">$0<span className="text-lg text-zinc-400">/month</span></div>
-              <ul className="space-y-3 mb-8">
-                <li className="flex items-center gap-2">
-                  <Check className="w-5 h-5 text-green-400" />
-                  <span>3 AI models comparison</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="w-5 h-5 text-green-400" />
-                  <span>Basic models (Gemini, LLaMA, Mixtral)</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="w-5 h-5 text-green-400" />
-                  <span>Chat history</span>
-                </li>
-              </ul>
-              <a
-                href="/sign-up"
-                className="block w-full text-center px-6 py-3 bg-white/10 text-white rounded-lg hover:bg-white/20 transition-all font-semibold border border-white/10"
+            <motion.h1 variants={fadeUp} className="text-5xl md:text-7xl lg:text-[88px] font-bold leading-[1.1] tracking-tight mb-8">
+              {["ChatGPT,", "Claude,", "Gemini"].map((word, wi) => (
+                <span key={wi} className="inline-block mr-4 last:mr-0">
+                  {word.split("").map((letter, li) => (
+                    <motion.span
+                      key={`${wi}-${li}`}
+                      initial={{ y: 80, opacity: 0 }}
+                      animate={{ y: 0, opacity: 1 }}
+                      transition={{ delay: wi * 0.1 + li * 0.03, type: "spring", stiffness: 150, damping: 25 }}
+                      className="inline-block"
+                    >
+                      {letter}
+                    </motion.span>
+                  ))}
+                </span>
+              ))}
+              <br />
+              <motion.span
+                variants={fadeUp}
+                className="bg-clip-text text-transparent bg-gradient-to-b from-neutral-300 to-neutral-600"
               >
-                Get Started
-              </a>
-            </article>
+                — All in One Place
+              </motion.span>
+            </motion.h1>
 
-            <article className="bg-gradient-to-br from-blue-500/20 to-purple-500/20 backdrop-blur-sm border-2 border-blue-500/30 rounded-2xl p-8 relative">
-              <div className="absolute -top-4 right-8 px-4 py-1 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full text-sm font-semibold">
-                Popular
+            <motion.p variants={fadeUp} className="text-lg md:text-xl text-neutral-400 max-w-xl mx-auto mb-12 leading-relaxed">
+              Use multiple AI models, compare answers, and build faster — all in one interface.
+            </motion.p>
+
+            <motion.div variants={fadeUp} className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+              <a href="/login" className="inline-flex items-center gap-2 px-8 py-4 bg-white text-black font-bold rounded-full hover:scale-105 hover:shadow-[0_0_25px_rgba(255,255,255,0.2)] transition-all text-sm">
+                Start Chat <ArrowRight className="w-4 h-4" />
+              </a>
+              <a href="/app" className="inline-flex items-center gap-2 px-8 py-4 bg-white/5 border border-white/10 text-white font-semibold rounded-full hover:bg-white/10 hover:scale-105 transition-all text-sm backdrop-blur-md">
+                Compare Models
+              </a>
+            </motion.div>
+
+            <motion.p variants={fadeUp} className="text-xs text-neutral-600 mt-8">Free to start. No credit card needed.</motion.p>
+          </motion.div>
+        </AnomalousMatterHero>
+
+        {/* ── DUAL SCROLLING STRIP ──────────────────────── */}
+        <div className="relative overflow-hidden w-full border-y border-white/5 bg-[#0a0a0a] py-8 space-y-6 flex flex-col group/strip">
+          <div className="absolute inset-y-0 left-0 w-20 md:w-48 bg-gradient-to-r from-[#0a0a0a] to-transparent z-10 pointer-events-none" />
+          <div className="absolute inset-y-0 right-0 w-20 md:w-48 bg-gradient-to-l from-[#0a0a0a] to-transparent z-10 pointer-events-none" />
+
+          {/* Row 1 — Models */}
+          <div className="flex gap-6 w-max animate-scroll-left group-hover/strip:[animation-play-state:paused]">
+            {['GPT-4o','Claude','Gemini','LLaMA','Mixtral','Phi-3','GPT-4o','Claude','Gemini','LLaMA','Mixtral','Phi-3','GPT-4o','Claude','Gemini','LLaMA','Mixtral','Phi-3'].map((m, i) => (
+              <div key={i} className="flex items-center gap-2 px-4 cursor-default">
+                <div className="w-1.5 h-1.5 rounded-full bg-purple-500/60 shadow-[0_0_6px_rgba(168,85,247,0.5)]" />
+                <span className="text-sm font-bold tracking-widest text-neutral-500 hover:text-white transition-colors whitespace-nowrap uppercase">{m}</span>
               </div>
-              <h3 className="text-2xl font-semibold mb-2">Premium</h3>
-              <div className="text-4xl font-bold mb-6">$9<span className="text-lg text-zinc-400">/month</span></div>
-              <ul className="space-y-3 mb-8">
-                <li className="flex items-center gap-2">
-                  <Check className="w-5 h-5 text-green-400" />
-                  <span>All free features</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="w-5 h-5 text-green-400" />
-                  <span>Premium models (GPT-4, Claude)</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="w-5 h-5 text-green-400" />
-                  <span>Unlimited conversations</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="w-5 h-5 text-green-400" />
-                  <span>Priority support</span>
-                </li>
-              </ul>
-              <a
-                href="/sign-up"
-                className="block w-full text-center px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg hover:opacity-90 transition-all font-semibold shadow-xl"
+            ))}
+          </div>
+
+          {/* Row 2 — Connectors */}
+          <div className="flex gap-4 w-max animate-scroll-right group-hover/strip:[animation-play-state:paused]">
+            {[
+              { n: 'Notion', i: <FileText className="w-4 h-4" /> },{ n: 'Gmail', i: <Mail className="w-4 h-4" /> },
+              { n: 'Supabase', i: <Database className="w-4 h-4" /> },{ n: 'Google Drive', i: <Cloud className="w-4 h-4" /> },
+              { n: 'Airtable', i: <Grid className="w-4 h-4" /> },{ n: 'Figma', i: <Figma className="w-4 h-4" /> },
+              { n: 'Vercel', i: <Triangle className="w-4 h-4" /> },{ n: 'Slack', i: <Slack className="w-4 h-4" /> },
+              { n: 'GitHub', i: <Github className="w-4 h-4" /> },{ n: 'Zapier', i: <Zap className="w-4 h-4" /> },
+              { n: 'Postman', i: <Send className="w-4 h-4" /> },{ n: 'Canva', i: <Palette className="w-4 h-4" /> },
+              { n: 'Notion', i: <FileText className="w-4 h-4" /> },{ n: 'Gmail', i: <Mail className="w-4 h-4" /> },
+              { n: 'Supabase', i: <Database className="w-4 h-4" /> },{ n: 'Google Drive', i: <Cloud className="w-4 h-4" /> },
+              { n: 'Airtable', i: <Grid className="w-4 h-4" /> },{ n: 'Figma', i: <Figma className="w-4 h-4" /> },
+              { n: 'Vercel', i: <Triangle className="w-4 h-4" /> },{ n: 'Slack', i: <Slack className="w-4 h-4" /> },
+              { n: 'GitHub', i: <Github className="w-4 h-4" /> },{ n: 'Zapier', i: <Zap className="w-4 h-4" /> },
+              { n: 'Postman', i: <Send className="w-4 h-4" /> },{ n: 'Canva', i: <Palette className="w-4 h-4" /> },
+            ].map((item, i) => (
+              <div key={i} className="flex items-center gap-2 text-sm font-medium text-neutral-400 hover:text-white bg-white/5 hover:bg-white/10 px-4 py-2 rounded-full border border-white/10 cursor-default transition-all whitespace-nowrap">
+                <span className="text-neutral-500">{item.i}</span>{item.n}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* ── SPLINE PREVIEW ────────────────────────────── */}
+        <SplineDemo />
+
+        {/* ── FEATURES ──────────────────────────────────── */}
+        <section id="features" className="relative w-full py-24 overflow-hidden">
+          <div className="relative max-w-7xl mx-auto px-6 z-10">
+            <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-center mb-16 relative z-10">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 text-neutral-400 text-xs font-semibold mb-5">Built for modern AI workflows</div>
+            <h2 className="text-4xl md:text-5xl font-bold mb-3 text-white">Everything you need</h2>
+            <p className="text-neutral-500 text-lg">One app. All AI tools. No switching, no friction.</p>
+          </motion.div>
+
+          <motion.div variants={stagger} initial="hidden" whileInView="visible" viewport={{ once: true }} className="grid grid-cols-1 md:grid-cols-3 gap-5 relative z-10">
+            {[
+              { title: 'One Chat, Multiple AI', desc: 'Use different AI models in one chat automatically.', icon: <Layers className="w-6 h-6 text-purple-400" />, accent: 'hover:border-purple-500/30 hover:shadow-purple-500/10', iconBg: 'bg-purple-500/10 border-purple-500/20' },
+              { title: 'Compare Mode', desc: 'See multiple answers side by side instantly.', icon: <GitCompare className="w-6 h-6 text-blue-400" />, accent: 'hover:border-blue-500/30 hover:shadow-blue-500/10', iconBg: 'bg-blue-500/10 border-blue-500/20' },
+              { title: 'Switch Models Anytime', desc: 'Change your AI model mid-conversation fluidly.', icon: <ToggleLeft className="w-6 h-6 text-cyan-400" />, accent: 'hover:border-cyan-500/30 hover:shadow-cyan-500/10', iconBg: 'bg-cyan-500/10 border-cyan-500/20' },
+              { title: '40+ Connectors', desc: 'Connect Notion, Gmail, databases & more.', icon: <Plug className="w-6 h-6 text-pink-400" />, accent: 'hover:border-pink-500/30 hover:shadow-pink-500/10', iconBg: 'bg-pink-500/10 border-pink-500/20' },
+              { title: 'AI Agent', desc: 'Generate full projects and write code autonomously.', icon: <Bot className="w-6 h-6 text-violet-400" />, accent: 'hover:border-violet-500/30 hover:shadow-violet-500/10', iconBg: 'bg-violet-500/10 border-violet-500/20' },
+              { title: 'Fast & Simple', desc: 'No switching between apps. Extremely clean UI.', icon: <Zap className="w-6 h-6 text-amber-400" />, accent: 'hover:border-amber-500/30 hover:shadow-amber-500/10', iconBg: 'bg-amber-500/10 border-amber-500/20' },
+            ].map(({ title, desc, icon, accent, iconBg }) => (
+              <motion.div key={title} variants={fadeUp}
+                className={`relative group rounded-2xl border border-white/8 bg-gradient-to-b from-white/[0.05] to-white/[0.01] p-7 transition-all duration-300 hover:scale-[1.02] hover:shadow-xl ${accent} cursor-default overflow-hidden`}
               >
-                Upgrade Now
-              </a>
-            </article>
+                <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-white/15 to-transparent" />
+                <div className={`w-11 h-11 rounded-xl flex items-center justify-center mb-5 border ${iconBg}`}>{icon}</div>
+                <h3 className="text-lg font-bold mb-2 text-white">{title}</h3>
+                <p className="text-sm text-neutral-500 leading-relaxed group-hover:text-neutral-400 transition-colors">{desc}</p>
+              </motion.div>
+            ))}
+            </motion.div>
           </div>
         </section>
 
-        {/* FAQ Section */}
-        <section className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
-          <h2 className="text-4xl md:text-5xl font-bold text-center mb-16">
-            Frequently Asked Questions
-          </h2>
-          <div className="space-y-6">
-            <details className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6 group">
-              <summary className="font-semibold text-lg cursor-pointer list-none flex justify-between items-center">
-                What AI models are available?
-                <span className="text-zinc-400 group-open:rotate-180 transition-transform">▼</span>
-              </summary>
-              <p className="text-zinc-400 mt-4">
-                We support GPT-4, Claude 3.5, Gemini Pro, LLaMA 3.1, Mixtral, and Phi-3. Free users get access to open-source models, while premium users unlock GPT-4 and Claude.
-              </p>
-            </details>
-
-            <details className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6 group">
-              <summary className="font-semibold text-lg cursor-pointer list-none flex justify-between items-center">
-                How does the comparison work?
-                <span className="text-zinc-400 group-open:rotate-180 transition-transform">▼</span>
-              </summary>
-              <p className="text-zinc-400 mt-4">
-                Select up to 3 models, ask your question, and see all responses side-by-side. This helps you compare quality, speed, and accuracy to find the best answer.
-              </p>
-            </details>
-
-            <details className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6 group">
-              <summary className="font-semibold text-lg cursor-pointer list-none flex justify-between items-center">
-                Is my data secure?
-                <span className="text-zinc-400 group-open:rotate-180 transition-transform">▼</span>
-              </summary>
-              <p className="text-zinc-400 mt-4">
-                Yes! All conversations are encrypted and stored securely. We use industry-standard security practices and never share your data with third parties.
-              </p>
-            </details>
-
-            <details className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6 group">
-              <summary className="font-semibold text-lg cursor-pointer list-none flex justify-between items-center">
-                Can I cancel anytime?
-                <span className="text-zinc-400 group-open:rotate-180 transition-transform">▼</span>
-              </summary>
-              <p className="text-zinc-400 mt-4">
-                Absolutely! You can upgrade, downgrade, or cancel your subscription at any time. No questions asked.
-              </p>
-            </details>
-
-            <details className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6 group">
-              <summary className="font-semibold text-lg cursor-pointer list-none flex justify-between items-center">
-                Do you offer refunds?
-                <span className="text-zinc-400 group-open:rotate-180 transition-transform">▼</span>
-              </summary>
-              <p className="text-zinc-400 mt-4">
-                Yes! We offer a 7-day money-back guarantee. If you're not satisfied, contact us for a full refund.
-              </p>
-            </details>
-          </div>
-        </section>
-
-        {/* Final CTA Section */}
-        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
-          <div className="bg-gradient-to-r from-blue-500/20 to-purple-500/20 backdrop-blur-sm border border-white/10 rounded-3xl p-12 md:p-16 text-center">
-            <h2 className="text-4xl md:text-5xl font-bold mb-6">
-              Ready to Experience the Future of AI?
-            </h2>
-            <p className="text-xl text-zinc-400 mb-8 max-w-2xl mx-auto">
-              Join thousands of users comparing AI models to get better answers, faster.
-            </p>
-            <a
-              href="/sign-up"
-              className="inline-flex items-center gap-2 px-8 py-4 bg-white text-black rounded-xl hover:bg-zinc-200 transition-all font-semibold text-lg shadow-xl"
+        {/* ── HOW IT WORKS ──────────────────────────────── */}
+        <section className="relative border-y border-white/5 py-24 overflow-hidden">
+          <div className="max-w-4xl mx-auto px-6 text-center relative z-10">
+            <motion.h2 initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="text-4xl md:text-5xl font-bold mb-20 text-white">
+              How it works
+            </motion.h2>
+            <motion.div variants={stagger} initial="hidden" whileInView="visible" viewport={{ once: true }}
+              className="relative flex flex-col sm:flex-row items-start justify-between max-w-3xl mx-auto gap-12 sm:gap-0"
             >
-              Start Free Today <ArrowRight className="w-5 h-5" />
-            </a>
+              <div className="absolute top-6 left-[16%] right-[16%] hidden sm:block h-[1px] bg-gradient-to-r from-transparent via-white/15 to-transparent" />
+              {[
+                { step: '1', title: 'Sign up', desc: 'Create your free account in seconds' },
+                { step: '2', title: 'Choose AI', desc: 'Pick one model or compare multiple' },
+                { step: '3', title: 'Start chatting', desc: 'Use tools, compare, and build' },
+              ].map(({ step, title, desc }) => (
+                <motion.div key={step} variants={fadeUp} className="relative z-10 flex flex-col items-center flex-1 group">
+                  <div className="w-12 h-12 rounded-full border border-white/15 bg-[#0a0a0a] flex items-center justify-center text-lg font-bold mb-4 text-white shadow-[0_0_20px_rgba(139,92,246,0.1)] group-hover:shadow-[0_0_30px_rgba(139,92,246,0.4)] group-hover:border-purple-500 transition-all duration-300">
+                    {step}
+                  </div>
+                  <h3 className="font-bold text-base text-neutral-200 group-hover:text-white transition-colors mb-1">{title}</h3>
+                  <p className="text-xs text-neutral-600 max-w-[110px] text-center leading-relaxed">{desc}</p>
+                </motion.div>
+              ))}
+            </motion.div>
           </div>
         </section>
+
+        {/* ── PRICING ───────────────────────────────────── */}
+        <section id="pricing" className="relative w-full overflow-hidden">
+          <div className="relative z-10 w-full">
+            <Pricing />
+          </div>
+        </section>
+
+        {/* ── FAQ ───────────────────────────────────────── */}
+        <section className="relative w-full py-24 overflow-hidden">
+          <div className="relative max-w-3xl mx-auto px-6 z-10">
+            <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="relative z-10">
+            <h2 className="text-4xl md:text-5xl font-bold text-center mb-12 text-white">Frequently Asked Questions</h2>
+            <div className="space-y-3">
+              {[
+                { q: 'What is Universe AI?', a: 'Universe AI is a single app where you can chat with multiple premium AI models like ChatGPT, Claude, and Gemini — all in one unified place. No need to open different websites or switch tabs.' },
+                { q: 'Do I need multiple subscriptions?', a: 'No. One Universe AI account gives you access to all available top-tier models without needing to manage separate subscriptions for OpenAI, Anthropic, or Google.' },
+                { q: 'Which AI models are available?', a: 'You get access to GPT-4o, Claude 3.5 Sonnet, Gemini 2.0 Pro, along with open-source models like LLaMA 3, Mixtral, and Phi-3.' },
+                { q: 'Is it free to start?', a: 'Yes! The Free plan lets you start with essential models and basic features. Pro unlocks premium models, unlimited chats, all 40+ connectors, and the full AI Agent.' },
+                { q: 'How does compare mode work?', a: 'Compare Mode lets you send a single prompt to 2–3 AI models simultaneously. Answers stream side-by-side so you can pick the best response or verify facts.' },
+              ].map(({ q, a }, idx) => (
+                <motion.details key={idx}
+                  initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: idx * 0.07 }}
+                  className="group bg-white/[0.03] border border-white/8 rounded-2xl px-6 py-5 cursor-pointer hover:border-white/15 transition-colors"
+                >
+                  <summary className="list-none flex items-center justify-between font-semibold text-base text-white select-none">
+                    {q}
+                    <div className="w-7 h-7 rounded-full bg-white/5 flex items-center justify-center group-open:rotate-180 transition-transform duration-300 ml-4 flex-shrink-0 border border-white/8">
+                      <span className="text-neutral-500 text-xs">▾</span>
+                    </div>
+                  </summary>
+                  <p className="mt-4 text-sm text-neutral-400 leading-relaxed">{a}</p>
+                </motion.details>
+              ))}
+            </div>
+          </motion.div>
+          </div>
+        </section>
+
+        {/* ── FINAL CTA ─────────────────────────────────── */}
+        <section className="max-w-7xl mx-auto px-6 pb-32">
+          <motion.div initial={{ opacity: 0, scale: 0.96 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true }} transition={{ duration: 0.6 }}
+            className="relative bg-[#09090b] border border-white/10 rounded-[2rem] px-8 py-20 flex flex-col items-center justify-center overflow-hidden shadow-2xl"
+          >
+            {/* Animated Flow Field inside CTA */}
+            <NeuralBackground color="#8b5cf6" trailOpacity={0.1} speed={1.2} />
+
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="w-80 h-80 bg-purple-500/10 rounded-full blur-[100px]" />
+            </div>
+
+            <div className="relative z-20 text-center">
+              <h2 className="text-4xl md:text-6xl font-black mb-5 text-white tracking-tight">
+                All AI. One place.<br />Start now.
+              </h2>
+              <p className="text-white/60 mb-10 text-lg max-w-md mx-auto">
+                Join thousands of builders accelerating their work with Universe AI.
+              </p>
+              <a href="/login" className="inline-flex items-center gap-2 px-10 py-5 bg-white text-black font-bold rounded-full hover:bg-neutral-200 hover:scale-[1.02] active:scale-95 transition-all shadow-[0_0_30px_rgba(255,255,255,0.15)] text-base">
+                Get Started Free <ArrowRight className="w-5 h-5" />
+              </a>
+            </div>
+          </motion.div>
+        </section>
+
       </main>
+      <Footer />
     </div>
   );
 }

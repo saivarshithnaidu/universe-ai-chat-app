@@ -1,29 +1,23 @@
-import { auth } from "@clerk/nextjs/server";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { ChatInterface } from "@/components/ChatInterface";
+import ChatInterface from "@/components/ChatInterface";
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
-    title: "Chat | Universal AI",
-    description: "Chat with multiple AI models side-by-side and compare responses.",
+  title: "Chat | Universal AI",
+  description: "Chat with multiple AI models side-by-side and compare responses.",
 };
 
+export const dynamic = 'force-dynamic';
+
 export default async function AppPage() {
-    const { userId } = await auth();
+  const session = await getServerSession(authOptions);
+  const userId = (session?.user as any)?.id;
 
-    if (process.env.NODE_ENV === 'development') {
-        console.log("Clerk userId:", userId);
-    }
+  if (!userId) {
+    redirect("/login");
+  }
 
-    if (!userId) {
-        redirect("/sign-in");
-    }
-
-    return (
-        <div className="h-screen overflow-hidden flex flex-col">
-            <div className="flex-1 overflow-hidden">
-                <ChatInterface />
-            </div>
-        </div>
-    );
+  return <ChatInterface />;
 }

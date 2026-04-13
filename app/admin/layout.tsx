@@ -3,6 +3,8 @@ import { isAdmin } from '@/lib/admin';
 import Link from 'next/link';
 import { LayoutDashboard, Users, AlertCircle, LifeBuoy } from 'lucide-react';
 
+export const dynamic = 'force-dynamic';
+
 export default async function AdminLayout({
     children,
 }: {

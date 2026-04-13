@@ -8,67 +8,67 @@ export interface AIModel {
 }
 
 
+export const SUPPORTED_MODELS = [
+    "openai/gpt-4o-mini",
+    "meta-llama/llama-3-8b-instruct",
+    "mistralai/mistral-7b-instruct",
+    "deepseek/deepseek-chat",
+    "google/gemini-2.0-flash-001",
+    "google/gemini-2.0-flash-lite-001",
+    "anthropic/claude-3.5-sonnet",
+    "deepseek/deepseek-r1",
+];
+
 export const ALL_MODELS: AIModel[] = [
-    // Free Models
     {
-        id: 'gemini-flash',
-        name: 'Gemini 1.5 Flash',
-        description: 'Fast Google model (Free tier)',
-        modelId: 'google/gemini-flash-1.5',
-        provider: 'Google',
+        id: 'gpt-4o-mini',
+        name: 'GPT-4o Mini',
+        description: 'Fast, efficient OpenAI model (Free)',
+        modelId: 'openai/gpt-4o-mini',
+        provider: 'OpenAI',
     },
     {
-        id: 'llama-3.1-8b',
-        name: 'LLaMA 3.1 8B',
-        description: 'Meta open-source model (Free)',
-        modelId: 'meta-llama/llama-3.1-8b-instruct',
+        id: 'llama-3-8b',
+        name: 'LLaMA 3 8B',
+        description: 'Meta efficient open model (Free)',
+        modelId: 'meta-llama/llama-3-8b-instruct',
         provider: 'Meta',
     },
     {
-        id: 'mixtral-8x7b',
-        name: 'Mixtral 8x7B',
-        description: 'Strong reasoning open model (Free)',
-        modelId: 'mistralai/mixtral-8x7b-instruct',
-        provider: 'Mistral',
+        id: 'deepseek-chat',
+        name: 'DeepSeek Chat',
+        description: 'DeepSeek-V3 versatile chat model (Free)',
+        modelId: 'deepseek/deepseek-chat',
+        provider: 'DeepSeek',
     },
     {
-        id: 'phi-3-medium',
-        name: 'Phi-3 Medium',
-        description: 'Microsoft efficient model (Free)',
-        modelId: 'microsoft/phi-3-medium-128k-instruct',
-        provider: 'Microsoft',
+        id: 'gemini-2.0-flash',
+        name: 'Gemini 2.0 Flash',
+        description: 'Ultra-fast multimodal model (Free)',
+        modelId: 'google/gemini-2.0-flash-001',
+        provider: 'Google',
     },
-    // Premium Models
     {
-        id: 'gpt-5.2-pro',
+        id: 'gemini-2.0-flash-lite',
+        name: 'Gemini 2.0 Flash Lite',
+        description: 'Lightweight high-speed model (Free)',
+        modelId: 'google/gemini-2.0-flash-lite-001',
+        provider: 'Google',
+    },
+    {
+        id: 'gpt-4o',
         name: 'GPT-4o',
-        description: 'Most advanced OpenAI model',
+        description: 'OpenAI flagship multimodal model',
         modelId: 'openai/gpt-4o',
         provider: 'OpenAI',
         isPremium: true,
     },
     {
-        id: 'gpt-5-nano',
-        name: 'GPT-5-nano',
-        description: 'Fastest OpenAI model (Nano)',
-        modelId: 'gpt-5-nano', // User requested ID
-        provider: 'OpenAI',
-        isPremium: true,
-    },
-    {
-        id: 'claude-sonnet',
+        id: 'claude-3.5-sonnet',
         name: 'Claude 3.5 Sonnet',
-        description: 'High intelligence & coding',
+        description: 'Anthropic most intelligent model',
         modelId: 'anthropic/claude-3.5-sonnet',
         provider: 'Anthropic',
-        isPremium: true,
-    },
-    {
-        id: 'gemini-flash-3.0-pro',
-        name: 'Gemini 1.5 Pro',
-        description: 'Google most capable model',
-        modelId: 'google/gemini-pro-1.5',
-        provider: 'Google',
         isPremium: true,
     },
 ];
