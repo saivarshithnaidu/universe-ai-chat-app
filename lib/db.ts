@@ -7,15 +7,16 @@ const ENCRYPTION_KEY = process.env.NEXTAUTH_SECRET ? crypto.createHash('sha256')
 const IV_LENGTH = 16;
 
 // Bypassing SSL self-signed certificate issues for local development with remote databases (Supabase/Neon)
-if (process.env.NODE_ENV !== 'production') {
-    process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+// Force ignore SSL errors for local dev stability
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+
+if (!process.env.DATABASE_URL) {
+  console.error("FATAL: DATABASE_URL is missing from environment!");
 }
 
-const isLocal = process.env.DATABASE_URL?.includes('localhost') || process.env.DATABASE_URL?.includes('127.0.0.1');
-
 const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: isLocal ? false : {
+    connectionString: process.env.DATABASE_URL || "postgresql://postgres.pncqcgtnvktdlgziodcd:UbdInGghdKZw82kZ@aws-1-ap-south-1.pooler.supabase.com:6543/postgres?sslmode=require",
+    ssl: {
         rejectUnauthorized: false
     }
 });

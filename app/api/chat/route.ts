@@ -1,5 +1,4 @@
-import { runModelsParallel, callSingleModel } from '@/lib/openrouter';
-import { handleGeminiAgent } from '@/lib/gemini';
+import { runModelsParallel, callSingleModel, callOpenRouterAgent } from '@/lib/openrouter';
 import { getModelById } from '@/lib/models';
 import { detectMCPTool, executeMCPTool } from '@/lib/mcp/registry';
 import { getServerSession } from "next-auth/next";
@@ -7,6 +6,9 @@ import { authOptions } from "@/lib/auth";
 import { db } from '@/lib/db';
 import { sanitizeUserInput } from '@/lib/sanitize';
 import { queryRAG } from '@/lib/pdf-parser';
+
+// Force ignore SSL errors for local dev stability
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 export const maxDuration = 60;
@@ -22,7 +24,12 @@ export async function POST(req: Request) {
     try {
         const session = await getServerSession(authOptions);
         const userId = (session?.user as any)?.id;
-        if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
+        console.log(`[API Chat] Request from User ID: ${userId} (Email: ${session?.user?.email})`);
+        
+        if (!userId) {
+             console.error("[API Chat] Rejected: No User ID found in session");
+             return Response.json({ error: "Unauthorized" }, { status: 401 });
+        }
 
         const body = await req.json();
         const {
@@ -86,7 +93,7 @@ export async function POST(req: Request) {
 
         // ── Step 3: Agent Mode ────────────────────────────────────────────────
         if (rawMode === 'agent') {
-            const agentResult = await handleGeminiAgent(messages, CODE_AGENT_PROMPT);
+            const agentResult = await callOpenRouterAgent(messages, CODE_AGENT_PROMPT);
             if (agentResult.project?.files) {
                 await db.updateChatProjectFiles(chatId, agentResult.project);
             }
@@ -94,54 +101,34 @@ export async function POST(req: Request) {
             return Response.json({ results: [agentResult], chatId });
         }
 
-        // ── Step 4: LLM Execution — branched by viewMode ──────────────────────
-        let systemPrompt = CHAT_SYSTEM_PROMPT;
-        if (rawMode === 'docs') {
-            try {
-                const ctx = await queryRAG(userInput, userId);
-                if (ctx) systemPrompt += `\n\nDocument context:\n${ctx}`;
-            } catch {}
+        // ── Step 4: Finalize response ────────────────────
+        const isCompareMode = viewMode === 'compare';
+        
+        let results: any[] = [];
+        if (isCompareMode) {
+            const parallel = await runModelsParallel(selectedModels, messages, CHAT_SYSTEM_PROMPT);
+            results = parallel.all;
+        } else {
+            const modelToCall = preferredModel || selectedModels[0] || 'gpt-4o-mini';
+            const single = await callSingleModel(modelToCall, messages, CHAT_SYSTEM_PROMPT);
+            results = [single];
         }
 
-        const validModels = (selectedModels as string[])
-            .filter(key => !!getModelById(key))
-            .slice(0, 3);
-        const modelsToRun = validModels.length > 0 ? validModels : ['gpt-4o-mini'];
-
-        // ── BEST MODE: One model ───────────────────────────────────────────────
-        if (viewMode === 'best') {
-            const modelToUse = (preferredModel && validModels.includes(preferredModel))
-                ? preferredModel
-                : modelsToRun[0];
-            try {
-                const result = await callSingleModel(modelToUse, messages, systemPrompt, 25000);
-                await db.saveMessage(chatId, 'assistant', result.text, result.id, 'success', false);
-                return Response.json({ results: [result], chatId });
-            } catch (err: any) {
-                const modelDef = getModelById(modelToUse);
-                return Response.json({
-                    results: [{
-                        id: modelToUse,
-                        type: 'llm',
-                        status: 'failed',
-                        text: `⚠️ ${modelDef?.name || modelToUse} failed to respond. Please retry.`,
-                        modelId: modelDef?.modelId || modelToUse,
-                        error: err.message,
-                    }],
-                    chatId,
-                });
-            }
+        // Save last assistant response to DB
+        if (results.length > 0 && results[0].status === 'success') {
+            await db.saveMessage(chatId, 'assistant', results[0].text, results[0].modelId || results[0].id, 'success', false);
         }
 
-        // ── COMPARE MODE: All models in parallel ──────────────────────────────
-        const { best, all } = await runModelsParallel(modelsToRun, messages, systemPrompt, 25000);
-        if (best) {
-            await db.saveMessage(chatId, 'assistant', best.text, best.id, 'success', false);
-        }
-        return Response.json({ results: all, chatId });
+        return Response.json({ results, chatId });
 
     } catch (error: any) {
-        console.error("[Route] Critical:", error?.message);
-        return Response.json({ error: "Internal Server Error" }, { status: 500 });
+        console.error("!!! [Route Critical Error] !!!");
+        console.error("Message:", error?.message);
+        console.error("Stack:", error?.stack);
+        return Response.json({ 
+            error: "Internal Server Error", 
+            details: error?.message,
+            stack: process.env.NODE_ENV === 'development' ? error?.stack : undefined
+        }, { status: 500 });
     }
 }

@@ -142,8 +142,8 @@ export default function ChatInterface({
     setAgentStep('idle');
     setInput('');
     setActiveTab('chat');
-    router.push('/app');
-  }, [router]);
+    window.history.pushState(null, '', '/app');
+  }, []);
 
   // ── Message Submit ────────────────────────────────────────────────────────────
   const handleSubmit = async (e: React.FormEvent) => {

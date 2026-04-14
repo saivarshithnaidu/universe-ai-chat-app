@@ -27,20 +27,26 @@ export function Sidebar({ activeChatId, onNewChat, collapsed }: SidebarProps) {
   const [chats, setChats] = useState<ChatEntry[]>([]);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
 
-  useEffect(() => { fetchChats(); }, []);
+  useEffect(() => { fetchChats(); }, [activeChatId]);
 
   const fetchChats = async () => {
     try {
+      console.log("[Sidebar] Fetching chats...");
       const res = await fetch('/api/chats');
       if (res.ok) {
         const data = await res.json();
+        console.log(`[Sidebar] Found ${data.length} chats`);
         setChats(data.map((c: any) => ({
           id: c.id,
           title: c.title || 'Untitled Chat',
           createdAt: c.created_at,
         })));
+      } else {
+        console.error("[Sidebar] Fetch failed status:", res.status);
       }
-    } catch {}
+    } catch (err) {
+      console.error("[Sidebar] Fetch catch error:", err);
+    }
   };
 
   const handleDelete = async (chatId: string) => {

@@ -60,7 +60,7 @@ export async function callSingleModel(
     modelKey: string,
     messages: any[],
     systemPrompt = "You are a helpful AI assistant.",
-    timeoutMs = 25000
+    timeoutMs = 40000
 ): Promise<ModelResult> {
     return callModel(modelKey, messages, systemPrompt, timeoutMs);
 }
@@ -74,7 +74,7 @@ export async function callModel(
     modelKey: string,
     messages: any[],
     systemPrompt = "You are a helpful AI assistant.",
-    timeoutMs = 25000
+    timeoutMs = 40000
 ): Promise<ModelResult> {
     const modelDef = getModelById(modelKey);
     const modelId = modelDef ? modelDef.modelId : modelKey;
@@ -94,7 +94,15 @@ export async function callModel(
                 ],
                 max_tokens: 2048,
                 temperature: 0.7,
-            });
+            }, { 
+                 fetch: (url: any, options: any) => {
+                    return fetch(url, {
+                        ...options,
+                        //@ts-ignore
+                        agent: new (require('https').Agent)({ rejectUnauthorized: false })
+                    });
+                 }
+            } as any);
 
             const timeoutPromise = new Promise<never>((_, reject) =>
                 setTimeout(() => reject(new Error(`Timeout: ${modelId} > ${timeoutMs / 1000}s`)), timeoutMs)
@@ -134,7 +142,7 @@ export async function runModelsParallel(
     modelKeys: string[],
     messages: any[],
     systemPrompt?: string,
-    timeoutMs = 25000
+    timeoutMs = 40000
 ): Promise<{ best: ModelResult | null; all: ModelResult[] }> {
     if (modelKeys.length === 0) {
         return { best: null, all: [] };
@@ -170,4 +178,44 @@ export async function runModelsParallel(
         best: firstSuccess,
         all: results,
     };
+}
+
+/**
+ * specialized call for Agent Mode (Code Builder)
+ * returns a JSON-wrapped object for the UI to consume.
+ */
+export async function callOpenRouterAgent(
+    messages: any[],
+    agentPrompt: string
+): Promise<any> {
+    const client = getOpenRouterClient(true); // Agent usually needs premium
+    try {
+        const completion = await client.chat.completions.create({
+            model: "google/gemini-2.0-pro-exp-02-05:free", // Defaulting agent to a strong model
+            messages: [
+                { role: 'system', content: agentPrompt },
+                ...messages,
+            ],
+            response_format: { type: 'json_object' },
+            temperature: 0.2, // Agents need precision
+        });
+
+        const text = normalizeResponse(completion.choices?.[0]);
+        const data = JSON.parse(text);
+
+        return {
+            text: "Project structure generated successfully.",
+            status: 'success',
+            modelUsed: "gemini-2.0-pro (via OpenRouter)",
+            project: data
+        };
+    } catch (err: any) {
+        console.error("[OpenRouter Agent] Failed:", err.message);
+        return {
+            text: "⚠️ Agent failed to generate project. Try again.",
+            status: 'failed',
+            modelUsed: "OpenRouter",
+            project: null
+        };
+    }
 }

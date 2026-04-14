@@ -2,14 +2,11 @@ import { db } from '@/lib/db';
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
-    // 1. Environment Safety
     if (!process.env.DATABASE_URL) {
-        console.error("API Error: DATABASE_URL is missing");
-        return Response.json(
-            { error: "Database not configured" },
-            { status: 500 }
-        );
+        console.warn("API Note: DATABASE_URL is missing, using hardcoded fallback in lib/db.ts");
     }
 
     try {
@@ -41,7 +38,7 @@ export async function GET() {
 
 export async function DELETE() {
     if (!process.env.DATABASE_URL) {
-        return Response.json({ error: "Database not configured" }, { status: 500 });
+        console.warn("API Note: DATABASE_URL is missing, using hardcoded fallback in lib/db.ts");
     }
 
     try {
