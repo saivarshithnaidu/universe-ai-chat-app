@@ -4,6 +4,7 @@ import GoogleProvider from "next-auth/providers/google";
 import DiscordProvider from "next-auth/providers/discord";
 import { dbPool } from "@/lib/db";
 import { appendFileSync } from "fs";
+import crypto from "crypto";
 
 // Diagnostics logger
 const logAuth = (msg: string) => {
@@ -138,9 +139,10 @@ export const authOptions: NextAuthOptions = {
         return true;
     },
     async redirect({ url, baseUrl }) {
-        // Redirect to /complete-profile after first login
+        // Standardize redirect to /complete-profile
+        if (url === '/complete_profile' || url.includes('complete_profile')) return `${baseUrl}/complete-profile`;
         if (url.startsWith(baseUrl)) return url;
-        return `${baseUrl}/complete-profile`;
+        return baseUrl;
     },
     async session({ session, token }: any) {
       if (session.user && token.sub) {

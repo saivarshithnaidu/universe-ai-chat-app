@@ -13,6 +13,7 @@ function LoginContent() {
     const searchParams = useSearchParams();
     const callbackUrl = "/app";
     const [isLoading, setIsLoading] = useState<string | null>(null);
+    const error = searchParams.get("error");
 
     useEffect(() => {
         if (status === "authenticated") {
@@ -43,6 +44,21 @@ function LoginContent() {
                     <h1 className="text-4xl font-bold tracking-tight text-white mb-3">Welcome Back</h1>
                     <p className="text-zinc-400 text-lg">Compare GPT, Gemini & Claude sidy-by-side.</p>
                 </div>
+
+                {error && (
+                    <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm flex items-center gap-3">
+                        <Shield className="w-5 h-5 flex-shrink-0" />
+                        <div>
+                            <p className="font-bold">Authentication failed</p>
+                            <p className="opacity-80">
+                                {error === 'OAuthCreateAccount' 
+                                    ? "There was a problem creating your account. Please try a different login method." 
+                                    : "Invalid session or login attempt. Please try again."
+                                }
+                            </p>
+                        </div>
+                    </div>
+                )}
 
                 <div className="bg-[#121212] border border-white/5 rounded-[2rem] p-8 shadow-2xl relative">
                     <div className="absolute inset-0 bg-gradient-to-b from-white/[0.02] to-transparent rounded-[2rem] pointer-events-none" />
