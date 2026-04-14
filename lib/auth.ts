@@ -69,8 +69,8 @@ const customAdapter = (pool: any) => {
         logAuth(`getUserByAccount: ${provider} / ${providerAccountId}`);
         const res = await pool.query(
           `SELECT u.* FROM users u 
-           JOIN accounts a ON u.id = a."userId" 
-           WHERE a.provider = $1 AND a."providerAccountId" = $2`,
+           JOIN accounts a ON u.id = a.user_id 
+           WHERE a.provider = $1 AND a.provider_account_id = $2`,
           [provider, providerAccountId]
         );
         const user = res.rows[0];
@@ -85,7 +85,7 @@ const customAdapter = (pool: any) => {
        logAuth(`linkAccount: ${account.provider} for user ${account.userId}`);
        try {
          await pool.query(
-          `INSERT INTO accounts (id, "userId", type, provider, "providerAccountId", refresh_token, access_token, expires_at, token_type, scope, id_token, session_state) 
+          `INSERT INTO accounts (id, user_id, type, provider, provider_account_id, refresh_token, access_token, expires_at, token_type, scope, id_token, session_state) 
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
           [
             crypto.randomUUID(),
@@ -149,15 +149,19 @@ export const authOptions: NextAuthOptions = {
         return true;
     },
     async redirect({ url, baseUrl }) {
-        // Standardize redirect to /complete-profile
-        if (url.includes('complete_profile') || url.includes('complete-profile')) {
-            return `${baseUrl}/complete-profile`;
-        }
-        // If url is relative or starts with baseUrl (ignoring www mismatch)
+        // Handle domain mismatch (www vs non-www)
         const cleanUrl = url.replace('https://www.', 'https://');
         const cleanBase = baseUrl.replace('https://www.', 'https://');
         
-        if (cleanUrl.startsWith(cleanBase) || url.startsWith('/')) return url;
+        if (cleanUrl.startsWith(cleanBase) || url.startsWith('/')) {
+            return url;
+        }
+        
+        // Standardize redirect to /app if coming from login
+        if (url.includes('/login')) {
+            return `${baseUrl}/app`;
+        }
+
         return baseUrl;
     },
     async session({ session, token }: any) {
@@ -180,8 +184,9 @@ export const authOptions: NextAuthOptions = {
         httpOnly: true,
         sameSite: "lax",
         path: "/",
-        secure: true,
-        domain: ".universalai.co.in" // FORCES cookies to work on BOTH www and root domain
+        secure: process.env.NODE_ENV === "production",
+        // Only set domain if on production to avoid breaking localhost
+        ...(process.env.NODE_ENV === "production" ? { domain: ".universalai.co.in" } : {})
       },
     },
   },
