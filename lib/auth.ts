@@ -149,16 +149,13 @@ export const authOptions: NextAuthOptions = {
         return true;
     },
     async redirect({ url, baseUrl }) {
-        // If it's a relative URL, prepend the baseUrl
+        // PERMISSIVE REDIRECT: If it's the app, let it through.
+        // This solves the www vs non-www mismatch for the review.
+        if (url.includes('/app')) {
+            // Force use the current baseUrl to keep session consistent
+            return `${baseUrl}/app`;
+        }
         if (url.startsWith("/")) return `${baseUrl}${url}`;
-        
-        // If it's an absolute URL on the same origin (ignoring protocol/www)
-        const cleanUrl = url.replace(/^https?:\/\/(www\.)?/, '');
-        const cleanBase = baseUrl.replace(/^https?:\/\/(www\.)?/, '');
-        
-        if (cleanUrl.startsWith(cleanBase)) return url;
-        
-        // Default fallback
         return baseUrl;
     },
     async session({ session, token }: any) {
@@ -176,18 +173,38 @@ export const authOptions: NextAuthOptions = {
   },
   cookies: {
     sessionToken: {
-      name: "next-auth.session-token",
+      name: `next-auth.session-token`,
       options: {
         httpOnly: true,
-        sameSite: "lax",
-        path: "/",
-        secure: process.env.NODE_ENV === "production"
-      },
+        sameSite: 'lax',
+        path: '/',
+        secure: process.env.NODE_ENV === "production",
+        domain: process.env.NODE_ENV === "production" ? ".universalai.co.in" : undefined
+      }
     },
+    callbackUrl: {
+      name: `next-auth.callback-url`,
+      options: {
+        sameSite: 'lax',
+        path: '/',
+        secure: process.env.NODE_ENV === "production",
+        domain: process.env.NODE_ENV === "production" ? ".universalai.co.in" : undefined
+      }
+    },
+    csrfToken: {
+      name: `next-auth.csrf-token`,
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: process.env.NODE_ENV === "production",
+        domain: process.env.NODE_ENV === "production" ? ".universalai.co.in" : undefined
+      }
+    }
   },
   pages: {
     signIn: '/login',
     error: '/login', 
   },
-  secret: process.env.NEXTAUTH_SECRET || "fallback-secret-for-development-only",
+  secret: process.env.NEXTAUTH_SECRET,
 };
