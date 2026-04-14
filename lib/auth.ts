@@ -149,12 +149,8 @@ export const authOptions: NextAuthOptions = {
         return true;
     },
     async redirect({ url, baseUrl }) {
-        // PERMISSIVE REDIRECT: If it's the app, let it through.
-        // This solves the www vs non-www mismatch for the review.
-        if (url.includes('/app')) {
-            // Force use the current baseUrl to keep session consistent
-            return `${baseUrl}/app`;
-        }
+        // PERMISSIVE REDIRECT: Ensure we always end up at the app
+        if (url.includes('/app')) return `${baseUrl}/app`;
         if (url.startsWith("/")) return `${baseUrl}${url}`;
         return baseUrl;
     },
@@ -171,34 +167,15 @@ export const authOptions: NextAuthOptions = {
       return token;
     }
   },
+  // Use standard NextAuth cookie names for maximum compatibility with Vercel/Next.js
   cookies: {
     sessionToken: {
-      name: `next-auth.session-token`,
+      name: process.env.NODE_ENV === "production" ? "__Secure-next-auth.session-token" : "next-auth.session-token",
       options: {
         httpOnly: true,
         sameSite: 'lax',
         path: '/',
-        secure: process.env.NODE_ENV === "production",
-        domain: process.env.NODE_ENV === "production" ? ".universalai.co.in" : undefined
-      }
-    },
-    callbackUrl: {
-      name: `next-auth.callback-url`,
-      options: {
-        sameSite: 'lax',
-        path: '/',
-        secure: process.env.NODE_ENV === "production",
-        domain: process.env.NODE_ENV === "production" ? ".universalai.co.in" : undefined
-      }
-    },
-    csrfToken: {
-      name: `next-auth.csrf-token`,
-      options: {
-        httpOnly: true,
-        sameSite: 'lax',
-        path: '/',
-        secure: process.env.NODE_ENV === "production",
-        domain: process.env.NODE_ENV === "production" ? ".universalai.co.in" : undefined
+        secure: process.env.NODE_ENV === "production"
       }
     }
   },
