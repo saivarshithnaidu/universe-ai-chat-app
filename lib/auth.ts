@@ -63,8 +63,8 @@ const customAdapter = (pool: any) => {
         logAuth(`getUserByAccount: ${provider} / ${providerAccountId}`);
         const res = await pool.query(
           `SELECT u.* FROM users u 
-           JOIN accounts a ON u.id = a.user_id 
-           WHERE a.provider = $1 AND a.provider_account_id = $2`,
+           JOIN accounts a ON u.id = a."userId" 
+           WHERE a.provider = $1 AND a."providerAccountId" = $2`,
           [provider, providerAccountId]
         );
         const user = res.rows[0];
@@ -79,7 +79,7 @@ const customAdapter = (pool: any) => {
        logAuth(`linkAccount: ${account.provider} for user ${account.userId}`);
        try {
          await pool.query(
-          `INSERT INTO accounts (id, user_id, type, provider, provider_account_id, refresh_token, access_token, expires_at, token_type, scope, id_token, session_state) 
+          `INSERT INTO accounts (id, "userId", type, provider, "providerAccountId", refresh_token, access_token, expires_at, token_type, scope, id_token, session_state) 
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
           [
             crypto.randomUUID(),

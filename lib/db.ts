@@ -91,10 +91,10 @@ export const db = {
             );`,
             `CREATE TABLE IF NOT EXISTS accounts (
                 id TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
-                user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                "userId" TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
                 type TEXT NOT NULL,
                 provider TEXT NOT NULL,
-                provider_account_id TEXT NOT NULL,
+                "providerAccountId" TEXT NOT NULL,
                 refresh_token TEXT,
                 access_token TEXT,
                 expires_at BIGINT,
