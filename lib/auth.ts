@@ -138,8 +138,9 @@ export const authOptions: NextAuthOptions = {
         return true;
     },
     async redirect({ url, baseUrl }) {
-        // ALWAYS redirect to /app after successful login
-        return `${baseUrl}/app`;
+        // Redirect to /complete-profile after first login
+        if (url.startsWith(baseUrl)) return url;
+        return `${baseUrl}/complete-profile`;
     },
     async session({ session, token }: any) {
       if (session.user && token.sub) {
