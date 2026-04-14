@@ -14,6 +14,7 @@ export const SUPPORTED_MODELS = [
     "mistralai/mistral-7b-instruct",
     "deepseek/deepseek-chat",
     "google/gemini-2.0-flash-001",
+    "google/gemini-2.0-flash-lite-preview-02-05:free",
     "google/gemini-2.0-flash-lite-001",
     "anthropic/claude-3.5-sonnet",
     "deepseek/deepseek-r1",
@@ -46,6 +47,13 @@ export const ALL_MODELS: AIModel[] = [
         name: 'Gemini 2.0 Flash',
         description: 'Ultra-fast multimodal model (Free)',
         modelId: 'google/gemini-2.0-flash-001',
+        provider: 'Google',
+    },
+    {
+        id: 'gemini-2.0-flash-lite-preview',
+        name: 'Gemini 2.0 Flash-Lite Latest',
+        description: 'Latest preview of lightweight Flash-Lite (Free)',
+        modelId: 'google/gemini-2.0-flash-lite-preview-02-05:free',
         provider: 'Google',
     },
     {

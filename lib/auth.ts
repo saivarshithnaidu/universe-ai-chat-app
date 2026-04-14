@@ -22,7 +22,6 @@ const customAdapter = (pool: any) => {
     async createUser(user: any) {
       logAuth(`createUser: ${user.email}`);
       try {
-        // Generating a UUID if one isn't provided
         const id = user.id || crypto.randomUUID();
         const res = await pool.query(
           'INSERT INTO users (id, name, email, image) VALUES ($1, $2, $3, $4) RETURNING *',
@@ -30,10 +29,9 @@ const customAdapter = (pool: any) => {
         );
         logAuth(`User created: ${id}`);
         const newUser = res.rows[0];
-        // Map back to camelCase for NextAuth internal consistency
         return { 
             ...newUser, 
-            emailVerified: newUser.email_verified || newUser.emailVerified || null 
+            emailVerified: newUser.email_verified || null 
         };
       } catch (e: any) {
         logAuth(`createUser ERROR: ${e.message}`);
@@ -44,7 +42,7 @@ const customAdapter = (pool: any) => {
       try {
         const res = await pool.query('SELECT * FROM users WHERE id = $1', [id]);
         const user = res.rows[0];
-        return user ? { ...user, emailVerified: user.email_verified || user.emailVerified || null } : null;
+        return user ? { ...user, emailVerified: user.email_verified || null } : null;
       } catch (e: any) {
         logAuth(`getUser ERROR: ${e.message}`);
         return null;
@@ -54,7 +52,7 @@ const customAdapter = (pool: any) => {
       try {
         const res = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
         const user = res.rows[0];
-        return user ? { ...user, emailVerified: user.email_verified || user.emailVerified || null } : null;
+        return user ? { ...user, emailVerified: user.email_verified || null } : null;
       } catch (e: any) {
         logAuth(`getUserByEmail ERROR: ${e.message}`);
         return null;
@@ -63,38 +61,25 @@ const customAdapter = (pool: any) => {
     async getUserByAccount({ provider, providerAccountId }: any) {
       try {
         logAuth(`getUserByAccount: ${provider} / ${providerAccountId}`);
-        // Matching actual DB columns: userId, providerAccountId (camelCase found in dump)
         const res = await pool.query(
           `SELECT u.* FROM users u 
-           JOIN accounts a ON u.id = a."userId" 
-           WHERE a.provider = $1 AND a."providerAccountId" = $2`,
+           JOIN accounts a ON u.id = a.user_id 
+           WHERE a.provider = $1 AND a.provider_account_id = $2`,
           [provider, providerAccountId]
         );
         const user = res.rows[0];
         logAuth(`getUserByAccount result: ${user ? user.email : "not found"}`);
-        return user ? { ...user, emailVerified: user.email_verified || user.emailVerified || null } : null;
+        return user ? { ...user, emailVerified: user.email_verified || null } : null;
       } catch (e: any) {
         logAuth(`getUserByAccount ERROR: ${e.message}`);
-        // Fallback: If "userId" fails, try user_id (snake_case)
-        try {
-            const res = await pool.query(
-                `SELECT u.* FROM users u 
-                 JOIN accounts a ON u.id = a.user_id 
-                 WHERE a.provider = $1 AND a.provider_account_id = $2`,
-                [provider, providerAccountId]
-            );
-            return res.rows[0];
-        } catch {
-            return null;
-        }
+        return null;
       }
     },
     async linkAccount(account: any) {
        logAuth(`linkAccount: ${account.provider} for user ${account.userId}`);
        try {
-         // Using double quotes for camelCase columns which are often the default in PG if created via certain tools
          await pool.query(
-          `INSERT INTO accounts (id, "userId", type, provider, "providerAccountId", refresh_token, access_token, expires_at, token_type, scope, id_token, session_state) 
+          `INSERT INTO accounts (id, user_id, type, provider, provider_account_id, refresh_token, access_token, expires_at, token_type, scope, id_token, session_state) 
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
           [
             crypto.randomUUID(),
@@ -114,17 +99,7 @@ const customAdapter = (pool: any) => {
         logAuth(`Account linked successfully`);
        } catch (e: any) {
           logAuth(`linkAccount ERROR: ${e.message}`);
-          // Fallback to snake_case if camelCase fails
-          try {
-            await pool.query(
-                `INSERT INTO accounts (user_id, type, provider, provider_account_id, refresh_token, access_token, expires_at, token_type, scope, id_token, session_state) 
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
-                [account.userId, account.type, account.provider, account.providerAccountId, account.refresh_token, account.access_token, account.expires_at, account.token_type, account.scope, account.id_token, account.session_state]
-              );
-          } catch (e2: any) {
-            logAuth(`linkAccount Fallback ERROR: ${e2.message}`);
-            throw e2;
-          }
+          throw e;
        }
     }
   };
@@ -155,12 +130,12 @@ export const authOptions: NextAuthOptions = {
   ],
   callbacks: {
     async signIn({ user, account, profile }: any) {
-        logAuth(`signIn: ${user?.email}`);
+        logAuth(`signIn: ${user?.email} via ${account?.provider}`);
         return true;
     },
     async redirect({ url, baseUrl }) {
-        // Force redirect to /app
-        return baseUrl + "/app";
+        // ALWAYS redirect to /app after successful login
+        return `${baseUrl}/app`;
     },
     async session({ session, token }: any) {
       if (session.user && token.sub) {

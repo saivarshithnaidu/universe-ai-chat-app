@@ -45,3 +45,19 @@
 2026-04-06T16:47:22.662Z - signIn: saivarshith8284@gmail.com
 2026-04-06T16:47:22.667Z - getUserByAccount: google / 115670115150190111429
 2026-04-06T16:47:22.721Z - getUserByAccount result: saivarshith8284@gmail.com
+2026-04-14T01:51:32.093Z - getUserByAccount: google / 101278323498762321082
+2026-04-14T01:51:42.742Z - getUserByAccount ERROR: column a.user_id does not exist
+2026-04-14T01:51:42.747Z - signIn: universalaichatapp@gmail.com via google
+2026-04-14T01:51:42.755Z - getUserByAccount: google / 101278323498762321082
+2026-04-14T01:51:49.880Z - getUserByAccount ERROR: column a.user_id does not exist
+2026-04-14T01:51:56.192Z - createUser: universalaichatapp@gmail.com
+2026-04-14T01:51:56.958Z - User created: 476591ab-c4be-4e60-832d-2cf0cb976b85
+2026-04-14T01:51:56.964Z - linkAccount: google for user 476591ab-c4be-4e60-832d-2cf0cb976b85
+2026-04-14T01:51:57.687Z - linkAccount ERROR: column "user_id" of relation "accounts" does not exist
+2026-04-14T05:01:34.081Z - getUserByAccount: google / 115670115150190111429
+2026-04-14T05:01:34.514Z - getUserByAccount ERROR: column a.user_id does not exist
+2026-04-14T05:01:34.518Z - signIn: saivarshith8284@gmail.com via google
+2026-04-14T05:01:35.688Z - getUserByAccount: google / 115670115150190111429
+2026-04-14T05:01:35.755Z - getUserByAccount ERROR: column a.user_id does not exist
+2026-04-14T05:01:35.766Z - linkAccount: google for user 248cc9e4-5601-4ca6-86ee-67aaa0bfa44f
+2026-04-14T05:01:36.453Z - linkAccount ERROR: column "user_id" of relation "accounts" does not exist
