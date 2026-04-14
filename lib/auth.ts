@@ -149,19 +149,16 @@ export const authOptions: NextAuthOptions = {
         return true;
     },
     async redirect({ url, baseUrl }) {
-        // Handle domain mismatch (www vs non-www)
-        const cleanUrl = url.replace('https://www.', 'https://');
-        const cleanBase = baseUrl.replace('https://www.', 'https://');
+        // If it's a relative URL, prepend the baseUrl
+        if (url.startsWith("/")) return `${baseUrl}${url}`;
         
-        if (cleanUrl.startsWith(cleanBase) || url.startsWith('/')) {
-            return url;
-        }
+        // If it's an absolute URL on the same origin (ignoring protocol/www)
+        const cleanUrl = url.replace(/^https?:\/\/(www\.)?/, '');
+        const cleanBase = baseUrl.replace(/^https?:\/\/(www\.)?/, '');
         
-        // Standardize redirect to /app if coming from login
-        if (url.includes('/login')) {
-            return `${baseUrl}/app`;
-        }
-
+        if (cleanUrl.startsWith(cleanBase)) return url;
+        
+        // Default fallback
         return baseUrl;
     },
     async session({ session, token }: any) {
@@ -184,9 +181,7 @@ export const authOptions: NextAuthOptions = {
         httpOnly: true,
         sameSite: "lax",
         path: "/",
-        secure: process.env.NODE_ENV === "production",
-        // Only set domain if on production to avoid breaking localhost
-        ...(process.env.NODE_ENV === "production" ? { domain: ".universalai.co.in" } : {})
+        secure: process.env.NODE_ENV === "production"
       },
     },
   },
