@@ -131,6 +131,10 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async signIn({ user, account, profile }: any) {
         logAuth(`signIn: ${user?.email} via ${account?.provider}`);
+        if (!user || !account) {
+            logAuth(`signIn FAILED: Missing user or account data`);
+            return false;
+        }
         return true;
     },
     async redirect({ url, baseUrl }) {
@@ -165,5 +169,5 @@ export const authOptions: NextAuthOptions = {
     signIn: '/login',
     error: '/login', 
   },
-  secret: process.env.NEXTAUTH_SECRET,
+  secret: process.env.NEXTAUTH_SECRET || "fallback-secret-for-development-only",
 };

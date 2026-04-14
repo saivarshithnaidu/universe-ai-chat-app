@@ -11,7 +11,7 @@ function LoginContent() {
     const { status } = useSession();
     const router = useRouter();
     const searchParams = useSearchParams();
-    const callbackUrl = searchParams.get("callbackUrl") || "/app";
+    const callbackUrl = "/app";
     const [isLoading, setIsLoading] = useState<string | null>(null);
 
     useEffect(() => {
