@@ -149,10 +149,11 @@ export const authOptions: NextAuthOptions = {
         return true;
     },
     async redirect({ url, baseUrl }) {
-        // PERMISSIVE REDIRECT: Ensure we always end up at the app
-        if (url.includes('/app')) return `${baseUrl}/app`;
-        if (url.startsWith("/")) return `${baseUrl}${url}`;
-        return baseUrl;
+        // Use the root domain only (strip www if it exists)
+        const rootBase = baseUrl.replace('://www.', '://');
+        if (url.includes('/app')) return `${rootBase}/app`;
+        if (url.startsWith("/")) return `${rootBase}${url}`;
+        return rootBase;
     },
     async session({ session, token }: any) {
       if (session.user && token.sub) {
