@@ -117,6 +117,11 @@ export const authOptions: NextAuthOptions = {
   session: {
     strategy: "jwt",
   },
+  events: {
+    async signIn(message: any) { await logAuth(`Event: signIn success for ${message.user.email}`); },
+    async createUser(message: any) { await logAuth(`Event: createUser ${message.user.email}`); },
+    async linkAccount(message: any) { await logAuth(`Event: linkAccount ${message.account.provider}`); },
+  },
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
