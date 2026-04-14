@@ -7,11 +7,16 @@ import { appendFileSync } from "fs";
 import crypto from "crypto";
 
 // Diagnostics logger
-const logAuth = (msg: string) => {
+const logAuth = async (msg: string) => {
     try {
         appendFileSync("nextauth_trace.log", `${new Date().toISOString()} - ${msg}\n`);
     } catch {}
     console.log(`[NextAuth Trace]: ${msg}`);
+    
+    // Also log to DB if possible for production visibility
+    try {
+        await dbPool.query("INSERT INTO rate_limits (key, timestamp) VALUES ($1, now())", [`AUTH_LOG: ${msg.substring(0, 100)}`]);
+    } catch {}
 };
 
 /**
@@ -170,7 +175,8 @@ export const authOptions: NextAuthOptions = {
         httpOnly: true,
         sameSite: "lax",
         path: "/",
-        secure: process.env.NODE_ENV === "production",
+        secure: true,
+        domain: ".universalai.co.in" // FORCES cookies to work on BOTH www and root domain
       },
     },
   },
