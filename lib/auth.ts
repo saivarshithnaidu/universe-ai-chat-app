@@ -140,8 +140,14 @@ export const authOptions: NextAuthOptions = {
     },
     async redirect({ url, baseUrl }) {
         // Standardize redirect to /complete-profile
-        if (url === '/complete_profile' || url.includes('complete_profile')) return `${baseUrl}/complete-profile`;
-        if (url.startsWith(baseUrl)) return url;
+        if (url.includes('complete_profile') || url.includes('complete-profile')) {
+            return `${baseUrl}/complete-profile`;
+        }
+        // If url is relative or starts with baseUrl (ignoring www mismatch)
+        const cleanUrl = url.replace('https://www.', 'https://');
+        const cleanBase = baseUrl.replace('https://www.', 'https://');
+        
+        if (cleanUrl.startsWith(cleanBase) || url.startsWith('/')) return url;
         return baseUrl;
     },
     async session({ session, token }: any) {
