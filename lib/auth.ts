@@ -86,7 +86,12 @@ const customAdapter = (pool: any) => {
        try {
          await pool.query(
           `INSERT INTO accounts (id, user_id, type, provider, provider_account_id, refresh_token, access_token, expires_at, token_type, scope, id_token, session_state) 
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+           ON CONFLICT (provider, provider_account_id) DO UPDATE SET
+             refresh_token = EXCLUDED.refresh_token,
+             access_token = EXCLUDED.access_token,
+             expires_at = EXCLUDED.expires_at,
+             id_token = EXCLUDED.id_token`,
           [
             crypto.randomUUID(),
             account.userId, 
