@@ -66,7 +66,7 @@ export async function callSingleModel(
     modelKey: string,
     messages: any[],
     systemPrompt = "You are a helpful AI assistant.",
-    timeoutMs = 40000
+    timeoutMs = 25000
 ): Promise<ModelResult> {
     return callModel(modelKey, messages, systemPrompt, timeoutMs);
 }
@@ -80,7 +80,7 @@ export async function callModel(
     modelKey: string,
     messages: any[],
     systemPrompt = "You are a helpful AI assistant.",
-    timeoutMs = 40000
+    timeoutMs = 25000
 ): Promise<ModelResult> {
     const modelDef = getModelById(modelKey);
     const modelId = modelDef ? modelDef.modelId : modelKey;
@@ -146,7 +146,7 @@ export async function callModel(
         } catch (err: any) {
             lastError = err;
             console.warn(`[OpenRouter] ${modelId} attempt ${attempt} failed: ${err.message}`);
-            if (attempt < 2) await new Promise(r => setTimeout(r, 1500));
+            if (attempt < 2) await new Promise(r => setTimeout(r, 1000));
         }
     }
 
@@ -165,7 +165,7 @@ export async function runModelsParallel(
     modelKeys: string[],
     messages: any[],
     systemPrompt?: string,
-    timeoutMs = 40000
+    timeoutMs = 25000
 ): Promise<{ best: ModelResult | null; all: ModelResult[] }> {
     if (modelKeys.length === 0) {
         return { best: null, all: [] };

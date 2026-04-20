@@ -1,6 +1,6 @@
 import { runModelsParallel, callSingleModel, callOpenRouterAgent } from '@/lib/openrouter';
 import { getModelById } from '@/lib/models';
-import { detectMCPTool, executeMCPTool } from '@/lib/mcp/registry';
+// import { detectMCPTool, executeMCPTool } from '@/lib/mcp/registry';
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { db } from '@/lib/db';
@@ -114,11 +114,15 @@ export async function POST(req: Request) {
             results = [single];
         }
 
+        console.log(`[API Chat] Models completed. Results count: ${results.length}`);
+
         // Save last assistant response to DB
         if (results.length > 0 && results[0].status === 'success') {
+            console.log(`[API Chat] Persisting assistant response for model: ${results[0].modelId || results[0].id}`);
             await db.saveMessage(chatId, 'assistant', results[0].text, results[0].modelId || results[0].id, 'success', false);
         }
 
+        console.log(`[API Chat] Request successful: ${chatId}`);
         return Response.json({ results, chatId });
 
     } catch (error: any) {

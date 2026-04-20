@@ -122,7 +122,7 @@ export async function handleGeminiAgent(
     const prompt = systemPrompt || CODE_AGENT_PROMPT;
     const parts = [{ text: prompt }, { text: userPrompt }];
 
-    // Max 2 retries with different keys
+    // Max 3 retries with different keys
     for (let attempt = 0; attempt < Math.min(3, keys.length); attempt++) {
         const apiKey = nextKey(keys);
         try {
@@ -140,12 +140,14 @@ export async function handleGeminiAgent(
         } catch (err: any) {
             console.warn(`[Gemini Agent] Attempt ${attempt + 1} failed: ${err.message}`);
             rotateKey(keys);
+            // Wait 1s between retries to allow quota to breathe
+            if (attempt < 2) await new Promise(r => setTimeout(r, 1000));
         }
     }
 
     return {
         id: 'gemini-agent',
-        text: "⚠️ Gemini Agent is currently taking a breather. Please try again later.",
+        text: "⚠️ Gemini Agent is currently at capacity or rate limited. Please try again in 60 seconds.",
         status: 'failed',
         type: 'llm',
         modelUsed: modelId

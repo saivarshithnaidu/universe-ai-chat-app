@@ -53,6 +53,12 @@ async function decideToolWithAI(input: string, enabledConnectorIds: string[]): P
 
   try {
     const response = await handleGeminiAgent([{ role: 'user', content: prompt }], "You are a JSON-only tool router.");
+    
+    if (response.status !== 'success') {
+      console.warn("[Engine] AI Decision failed:", response.text);
+      return null;
+    }
+
     // Strip markdown backticks if present
     const cleanJson = response.text.replace(/```json|```/g, '').trim();
     const decision = JSON.parse(cleanJson);

@@ -403,10 +403,18 @@ export const db = {
 
 // Ensure single instance in dev used by Next.js hot reload
 export let dbPool: Pool;
+let schemaInitialized = false;
+
 if (process.env.NODE_ENV === 'production') {
     dbPool = pool;
-    // Always attempt schema sync in production to prevent "Callback" errors due to missing columns
-    db.initSchema().catch(e => console.error("Production Schema Sync Warning:", e));
+    // Attempt schema sync once per instance in production
+    if (!schemaInitialized) {
+        schemaInitialized = true;
+        db.initSchema().catch(e => {
+            schemaInitialized = false; // reset on error to allow retry
+            console.error("Production Schema Sync Warning:", e);
+        });
+    }
 } else {
     if (!(global as any).dbPool) {
         (global as any).dbPool = pool;
