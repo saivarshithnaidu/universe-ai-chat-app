@@ -123,13 +123,18 @@ export async function callModel(
 
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.error?.message || `HTTP ${response.status}: ${response.statusText}`);
+                const errMsg = errorData?.error?.message || errorData?.message || `HTTP ${response.status}`;
+                throw new Error(errMsg);
             }
 
             const data = await response.json();
             const text = normalizeResponse(data.choices?.[0]);
 
-            if (!text) throw new Error("Received empty text from AI provider.");
+            if (!text) {
+                // Check for OpenRouter-specific error structures
+                if (data.error) throw new Error(data.error.message || "Unknown Provider Error");
+                throw new Error("Received empty text from AI provider.");
+            }
 
             return {
                 id: modelDef?.id || modelKey,
