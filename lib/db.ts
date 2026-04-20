@@ -21,44 +21,6 @@ const pool = new Pool({
     }
 });
 
-// Ensure single instance in dev used by Next.js hot reload
-export let dbPool: Pool;
-if (process.env.NODE_ENV === 'production') {
-    dbPool = pool;
-} else {
-    if (!(global as any).dbPool) {
-        (global as any).dbPool = pool;
-        // Test connection and Init Schema in dev
-        pool.query('SELECT 1').then(() => {
-            console.log("✅ Database Connected Successfully (SSL Bypassed)");
-            db.initSchema().catch(e => console.error("Schema Init Error:", e));
-        }).catch(err => {
-            console.error("❌ Database Connection Failed:", err.message);
-        });
-    }
-    dbPool = (global as any).dbPool;
-}
-
-export interface Chat {
-    id: string;
-    user_id: string;
-    title: string | null;
-    created_at: Date;
-    project_files?: any;
-    project_framework?: string;
-}
-
-export interface Message {
-    id: string;
-    chat_id: string;
-    role: 'user' | 'assistant';
-    model: string | null;
-    content: string;
-    status: 'success' | 'failed' | 'busy';
-    fallback: boolean;
-    created_at: Date;
-}
-
 export const db = {
     async query(text: string, params: any[] = []) {
         try {
@@ -426,3 +388,43 @@ export const db = {
         }
     }
 };
+
+// Ensure single instance in dev used by Next.js hot reload
+export let dbPool: Pool;
+if (process.env.NODE_ENV === 'production') {
+    dbPool = pool;
+    // Always attempt schema sync in production to prevent "Callback" errors due to missing columns
+    db.initSchema().catch(e => console.error("Production Schema Sync Warning:", e));
+} else {
+    if (!(global as any).dbPool) {
+        (global as any).dbPool = pool;
+        // Test connection and Init Schema in dev
+        pool.query('SELECT 1').then(() => {
+            console.log("✅ Database Connected Successfully (SSL Bypassed)");
+            db.initSchema().catch(e => console.error("Schema Init Error:", e));
+        }).catch(err => {
+            console.error("❌ Database Connection Failed:", err.message);
+        });
+    }
+    dbPool = (global as any).dbPool;
+}
+
+export interface Chat {
+    id: string;
+    user_id: string;
+    title: string | null;
+    created_at: Date;
+    project_files?: any;
+    project_framework?: string;
+}
+
+export interface Message {
+    id: string;
+    chat_id: string;
+    role: 'user' | 'assistant';
+    model: string | null;
+    content: string;
+    status: 'success' | 'failed' | 'busy';
+    fallback: boolean;
+    created_at: Date;
+}

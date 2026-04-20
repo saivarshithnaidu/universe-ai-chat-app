@@ -1,0 +1,94 @@
+================================================================================
+HF PDF & RAG SERVICE: PIN-TO-PIN USAGE GUIDE
+================================================================================
+
+This guide explains how to set up and use the PDF extraction and RAG (Retrieval 
+Augmented Generation) service in any project.
+
+--------------------------------------------------------------------------------
+STEP 1: START THE BACKEND SERVICE (PYTHON)
+--------------------------------------------------------------------------------
+1. Navigate to the service folder:
+   cd universe-ai/hf_pdf_service
+
+2. Install Python dependencies (one-time setup):
+   pip install -r requirements.txt
+
+3. Run the service:
+   python app.py
+
+* The service will start at: http://localhost:7860
+* This MUST be running for your projects to work.
+
+--------------------------------------------------------------------------------
+STEP 2: INTEGRATE INTO YOUR PROJECT (TYPESCRIPT/JS)
+--------------------------------------------------------------------------------
+1. Copy the 'pdf_service_client.ts' file into your project's 'lib' or 'services' folder.
+
+2. Import the client in your page or component:
+   
+   import { pdfService } from '@/lib/pdf_service_client';
+
+--------------------------------------------------------------------------------
+STEP 3: HOW TO USE THE FEATURES (CODE SNIPPETS)
+--------------------------------------------------------------------------------
+
+A) EXTRACTING TEXT FROM A PDF FILE:
+-----------------------------------
+const file = event.target.files[0];
+const result = await pdfService.extractPdf(file);
+
+if (result.success) {
+    console.log("Text:", result.data.text);
+    console.log("Pages:", result.data.pages);
+} else {
+    console.error("Error:", result.error);
+}
+
+B) STORING TEXT FOR AI SEARCH (RAG):
+------------------------------------
+const userId = "user_123"; // Use the actual user's ID
+const textToStore = "The content extracted from the PDF...";
+
+const result = await pdfService.storeInRag(userId, textToStore, "my_resume.pdf");
+
+if (result.success) {
+    console.log("Stored successfully! Chunks created:", result.data.chunks);
+}
+
+C) SEARCHING (QUERYING) THE CONTENT:
+------------------------------------
+const userId = "user_123";
+const question = "What is the candidate's work experience?";
+
+const searchResult = await pdfService.queryRag(userId, question);
+
+if (searchResult.success) {
+    // You can now pass this context to ChatGPT/Gemini
+    const aiContext = searchResult.data.context; 
+    console.log("Context found:", aiContext);
+}
+
+--------------------------------------------------------------------------------
+ADVANCED TIPS
+--------------------------------------------------------------------------------
+1. PORT: If you change the port in app.py (default 7860), make sure to update 
+   it in the PdfServiceClient constructor or when importing:
+   const myService = new PdfServiceClient('http://localhost:YOUR_PORT');
+
+2. PERSISTENCE: Data is saved automatically in the 'chroma_db' folder inside 
+   hf_pdf_service. If you delete that folder, the stored data is reset.
+
+3. MULTI-USER: The service uses 'userId' to keep documents private. One user 
+   cannot search another's documents.
+
+================================================================================
+SERVICE PIN-TO-PIN SUMMARY
+================================================================================
+Endpoint        | Method | Purpose
+----------------|--------|-----------------------------------------------------
+/extract        | POST   | Give file -> Get raw text
+/rag/store      | POST   | Give text + userId -> Save in AI Database
+/rag/query      | POST   | Give question + userId -> Get relevant context
+/health         | GET    | Check if service is alive
+================================================================================

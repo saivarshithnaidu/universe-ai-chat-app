@@ -30,14 +30,19 @@ const customAdapter = (pool: any) => {
       try {
         const id = user.id || crypto.randomUUID();
         const res = await pool.query(
-          'INSERT INTO users (id, name, email, image) VALUES ($1, $2, $3, $4) RETURNING *',
+          `INSERT INTO users (id, name, email, image) 
+           VALUES ($1, $2, $3, $4) 
+           ON CONFLICT (email) DO UPDATE SET 
+             name = COALESCE(users.name, EXCLUDED.name),
+             image = COALESCE(users.image, EXCLUDED.image)
+           RETURNING *`,
           [id, user.name || null, user.email || null, user.image || null]
         );
-        logAuth(`User created: ${id}`);
+        logAuth(`User upserted: ${res.rows[0].id}`);
         const newUser = res.rows[0];
         return { 
             ...newUser, 
-            emailVerified: newUser.email_verified || null 
+            emailVerified: newUser.email_verified || newUser.emailVerified || null 
         };
       } catch (e: any) {
         logAuth(`createUser ERROR: ${e.message}`);
@@ -88,10 +93,11 @@ const customAdapter = (pool: any) => {
           `INSERT INTO accounts (id, user_id, type, provider, provider_account_id, refresh_token, access_token, expires_at, token_type, scope, id_token, session_state) 
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
            ON CONFLICT (provider, provider_account_id) DO UPDATE SET
-             refresh_token = EXCLUDED.refresh_token,
-             access_token = EXCLUDED.access_token,
-             expires_at = EXCLUDED.expires_at,
-             id_token = EXCLUDED.id_token`,
+             refresh_token = COALESCE(EXCLUDED.refresh_token, accounts.refresh_token),
+             access_token = COALESCE(EXCLUDED.access_token, accounts.access_token),
+             expires_at = COALESCE(EXCLUDED.expires_at, accounts.expires_at),
+             id_token = COALESCE(EXCLUDED.id_token, accounts.id_token),
+             session_state = COALESCE(EXCLUDED.session_state, accounts.session_state)`,
           [
             crypto.randomUUID(),
             account.userId, 
@@ -146,19 +152,25 @@ export const authOptions: NextAuthOptions = {
   ],
   callbacks: {
     async signIn({ user, account, profile }: any) {
-        logAuth(`signIn: ${user?.email} via ${account?.provider}`);
-        if (!user || !account) {
-            logAuth(`signIn FAILED: Missing user or account data`);
+        try {
+            console.log("signIn callback invoked with:", { user, account, profile });
+            logAuth(`signIn: ${user?.email} via ${account?.provider}`);
+            if (!user || !account) {
+                logAuth(`signIn FAILED: Missing user or account data`);
+                return false;
+            }
+            return true;
+        } catch (e: any) {
+            logAuth(`CRITICAL CALLBACK ERROR: ${e.message}`);
             return false;
         }
-        return true;
     },
     async redirect({ url, baseUrl }) {
         // Use the root domain only (strip www if it exists)
-        const rootBase = baseUrl.replace('://www.', '://');
-        if (url.includes('/app')) return `${rootBase}/app`;
-        if (url.startsWith("/")) return `${rootBase}${url}`;
-        return rootBase;
+        // const rootBase = baseUrl;
+        if (url.includes('/app')) return `${baseUrl}/app`;
+        if (url.startsWith("/")) return `${baseUrl}${url}`;
+        return baseUrl;
     },
     async session({ session, token }: any) {
       if (session.user && token.sub) {
