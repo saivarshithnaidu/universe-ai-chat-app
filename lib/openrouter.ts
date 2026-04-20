@@ -86,30 +86,50 @@ export async function callModel(
     const modelId = modelDef ? modelDef.modelId : modelKey;
     const isPremium = modelDef ? !!modelDef.isPremium : false;
 
-    const client = getOpenRouterClient(isPremium);
+    const apiKey = isPremium ? getPaidKey() : getFreeKey();
+    if (!apiKey) {
+        console.error(`[OpenRouter] Missing API key for ${modelId}`);
+        throw new Error("API Key logic failed: No key found in environment variables.");
+    }
+
     let lastError: any = null;
 
-    // Internal retry (max 2 attempts) for transient errors only
     for (let attempt = 1; attempt <= 2; attempt++) {
         try {
-            const callPromise = client.chat.completions.create({
-                model: modelId,
-                messages: [
-                    { role: 'system', content: systemPrompt },
-                    ...messages.slice(-10),
-                ],
-                max_tokens: 2048,
-                temperature: 0.7,
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+            const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`,
+                    'HTTP-Referer': 'https://universalai.co.in',
+                    'X-Title': 'Universe AI',
+                },
+                body: JSON.stringify({
+                    model: modelId,
+                    messages: [
+                        { role: 'system', content: systemPrompt },
+                        ...messages.slice(-10),
+                    ],
+                    max_tokens: 2048,
+                    temperature: 0.7,
+                }),
+                signal: controller.signal
             });
 
-            const timeoutPromise = new Promise<never>((_, reject) =>
-                setTimeout(() => reject(new Error(`Timeout: ${modelId} > ${timeoutMs / 1000}s`)), timeoutMs)
-            );
+            clearTimeout(timeout);
 
-            const completion = await Promise.race([callPromise, timeoutPromise]) as any;
-            const text = normalizeResponse(completion.choices?.[0]);
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error?.message || `HTTP ${response.status}: ${response.statusText}`);
+            }
 
-            if (!text) throw new Error(`Empty response from ${modelId}`);
+            const data = await response.json();
+            const text = normalizeResponse(data.choices?.[0]);
+
+            if (!text) throw new Error("Received empty text from AI provider.");
 
             return {
                 id: modelDef?.id || modelKey,
@@ -121,11 +141,11 @@ export async function callModel(
         } catch (err: any) {
             lastError = err;
             console.warn(`[OpenRouter] ${modelId} attempt ${attempt} failed: ${err.message}`);
-            if (attempt < 2) await new Promise(r => setTimeout(r, 1000)); // wait 1s before retry
+            if (attempt < 2) await new Promise(r => setTimeout(r, 1500));
         }
     }
 
-    throw lastError || new Error(`Failed to call ${modelId}`);
+    throw lastError || new Error(`Failed to call ${modelId} after retries.`);
 }
 
 // ─── Parallel Multi-Model Execution ──────────────────────────────────────────
