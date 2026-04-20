@@ -136,6 +136,7 @@ export const db = {
             );`,
             `CREATE INDEX IF NOT EXISTS idx_rate_limits_key_timestamp ON rate_limits(key, timestamp);`,
             `ALTER TABLE chats ADD COLUMN IF NOT EXISTS project_files JSONB DEFAULT '{}';`,
+            `ALTER TABLE users ADD COLUMN IF NOT EXISTS image TEXT;`,
             `ALTER TABLE users ADD COLUMN IF NOT EXISTS "resumeText" TEXT;`
         ];
 
