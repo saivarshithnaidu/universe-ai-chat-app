@@ -155,13 +155,17 @@ export default function ChatInterface({
     setIsLoading(true);
 
     const isToolTab = activeTab === 'docs' || activeTab === 'jobs';
-    const isCompareMode = !isToolTab && viewMode === 'compare' && selectedModelIds.length > 1;
+    const isAgentMode = activeTab === 'agent';
+    const isCompareMode = !isToolTab && !isAgentMode && viewMode === 'compare' && selectedModelIds.length > 1;
     const activeModels = isCompareMode ? selectedModelIds : [preferredModel || selectedModelIds[0] || 'ai'];
+
+    // Whether to use streaming (only for standard chat, not tools/agent)
+    const useStreaming = !isToolTab && !isAgentMode;
 
     // Optimistic placeholders
     const optimisticTurn: ChatTurn = {
       userMessage: msg,
-      responses: (activeTab === 'agent')
+      responses: isAgentMode
         ? [{ modelId: 'gemini-agent', text: '', status: 'busy' }]
         : isToolTab
         ? [{ modelId: activeTab, text: '', status: 'busy', type: 'tool', toolKey: activeTab }]
@@ -169,68 +173,32 @@ export default function ChatInterface({
     };
     setChatHistory(prev => [...prev, optimisticTurn]);
 
+    const requestBody = {
+      messages: [
+        ...chatHistory.flatMap(m => [
+          { role: 'user', content: m.userMessage },
+          ...(m.responses.filter(r => r.status === 'success').slice(0, 1)
+            .map(r => ({ role: 'assistant', content: r.text }))),
+        ]),
+        { role: 'user', content: msg },
+      ],
+      chatId: activeChatId,
+      selectedModels: selectedModelIds,
+      preferredModel,
+      mode: isAgentMode ? 'agent' : 'chat',
+      viewMode: isToolTab ? 'best' : viewMode,
+      connectorTokens: getConnectorTokens(),
+      enabledConnectorIds,
+    };
+
     try {
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: [
-            ...chatHistory.flatMap(m => [
-              { role: 'user', content: m.userMessage },
-              ...(m.responses.filter(r => r.status === 'success').slice(0, 1)
-                .map(r => ({ role: 'assistant', content: r.text }))),
-            ]),
-            { role: 'user', content: msg },
-          ],
-          chatId: activeChatId,
-          selectedModels: selectedModelIds,
-          preferredModel,
-          mode: activeTab === 'agent' ? 'agent' : 'chat',
-          viewMode: isToolTab ? 'best' : viewMode,
-          connectorTokens: getConnectorTokens(),
-          enabledConnectorIds,
-        }),
-      });
-
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-
-      if (!activeChatId && data.chatId) {
-        setActiveChatId(data.chatId);
-        window.history.pushState(null, '', `/chat/${data.chatId}`);
+      if (useStreaming) {
+        // ── Streaming path ────────────────────────────────────────────────
+        await handleStreamingChat(requestBody, activeModels);
+      } else {
+        // ── Legacy JSON path (agent + tools) ──────────────────────────────
+        await handleJsonChat(requestBody);
       }
-
-      const newResponses: ChatResponse[] = (data.results || []).map((r: any) => ({
-        modelId: r.id || r.modelId || 'ai',
-        text: r.text || '',
-        status: (r.status as 'success' | 'failed') || 'success',
-        type: r.type || 'llm',
-        toolName: r.toolName,
-        toolKey: r.toolKey,
-        data: r.data,
-        error: r.error,
-      }));
-
-      setChatHistory(prev => {
-        const updated = [...prev];
-        const last = updated[updated.length - 1];
-        if (last) {
-          last.responses = newResponses.length > 0
-            ? newResponses
-            : [{ modelId: selectedModelIds[0], text: '⚠️ Model failed to respond.', status: 'failed' }];
-        }
-        return updated;
-      });
-
-      // Handle project files from agent
-      const agentResult = (data.results || []).find((r: any) => r.project?.files);
-      if (agentResult?.project?.files) {
-        setProjectFiles(agentResult.project.files);
-        setProjectFramework(agentResult.project.framework || 'react');
-        if (activeTab !== 'agent') setActiveTab('agent');
-        setAgentStep('building');
-      }
-
     } catch (err) {
       console.error('[ChatInterface]', err);
       setChatHistory(prev => {
@@ -248,6 +216,210 @@ export default function ChatInterface({
     } finally {
       setIsLoading(false);
       if (activeTab !== 'agent' || agentStep !== 'building') setAgentStep('idle');
+    }
+  };
+
+  // ── Streaming Chat Handler ─────────────────────────────────────────────────
+  const handleStreamingChat = async (requestBody: any, activeModels: string[]) => {
+    const res = await fetch('/api/chat/stream', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(requestBody),
+    });
+
+    if (!res.ok) {
+      // If streaming endpoint fails, check if it returned JSON (tool result)
+      const contentType = res.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        const data = await res.json();
+        // Tool results come back as JSON — handle them
+        if (data.results) {
+          handleJsonResponse(data);
+          return;
+        }
+      }
+      throw new Error(`HTTP ${res.status}`);
+    }
+
+    const contentType = res.headers.get('content-type') || '';
+
+    // If the stream route returned JSON (tool results), handle it
+    if (contentType.includes('application/json')) {
+      const data = await res.json();
+      handleJsonResponse(data);
+      return;
+    }
+
+    // ── SSE stream reading ──────────────────────────────────────────────
+    if (!res.body) throw new Error('No response body');
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    // Accumulate text per model for final state
+    const modelTexts: Record<string, string> = {};
+    activeModels.forEach(id => { modelTexts[id] = ''; });
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+
+        if (trimmed.startsWith('event: ')) {
+          // Parse SSE event
+          const eventType = trimmed.slice(7);
+          // Next line should be data
+          continue;
+        }
+
+        if (trimmed.startsWith('data: ')) {
+          const raw = trimmed.slice(6);
+          let parsed: any;
+          try {
+            parsed = JSON.parse(raw);
+          } catch {
+            continue;
+          }
+
+          // Determine event type from parsed data structure
+          if (parsed.delta !== undefined && parsed.modelKey) {
+            // ── chunk event: append delta to the correct model ──────
+            const key = parsed.modelKey;
+            modelTexts[key] = (modelTexts[key] || '') + parsed.delta;
+            const currentText = modelTexts[key];
+
+            setChatHistory(prev => {
+              const updated = [...prev];
+              const last = updated[updated.length - 1];
+              if (!last) return prev;
+
+              const respIdx = last.responses.findIndex(r => r.modelId === key);
+              if (respIdx !== -1) {
+                const newResponses = [...last.responses];
+                newResponses[respIdx] = {
+                  ...newResponses[respIdx],
+                  text: currentText,
+                  status: 'busy',
+                };
+                return [...updated.slice(0, -1), { ...last, responses: newResponses }];
+              }
+              return prev;
+            });
+
+          } else if (parsed.fullText !== undefined && parsed.modelKey) {
+            // ── model_done event: finalize this model's response ─────
+            const key = parsed.modelKey;
+            modelTexts[key] = parsed.fullText;
+
+            setChatHistory(prev => {
+              const updated = [...prev];
+              const last = updated[updated.length - 1];
+              if (!last) return prev;
+
+              const respIdx = last.responses.findIndex(r => r.modelId === key);
+              if (respIdx !== -1) {
+                const newResponses = [...last.responses];
+                newResponses[respIdx] = {
+                  ...newResponses[respIdx],
+                  text: parsed.fullText,
+                  status: 'success',
+                };
+                return [...updated.slice(0, -1), { ...last, responses: newResponses }];
+              }
+              return prev;
+            });
+
+          } else if (parsed.error && parsed.modelKey) {
+            // ── error event for specific model ──────────────────────
+            const key = parsed.modelKey;
+            setChatHistory(prev => {
+              const updated = [...prev];
+              const last = updated[updated.length - 1];
+              if (!last) return prev;
+
+              const respIdx = last.responses.findIndex(r => r.modelId === key);
+              if (respIdx !== -1) {
+                const newResponses = [...last.responses];
+                newResponses[respIdx] = {
+                  ...newResponses[respIdx],
+                  text: '⚠️ Model failed to respond.',
+                  status: 'failed',
+                  error: parsed.error,
+                };
+                return [...updated.slice(0, -1), { ...last, responses: newResponses }];
+              }
+              return prev;
+            });
+
+          } else if (parsed.chatId && !parsed.delta && !parsed.fullText && !parsed.error) {
+            // ── meta event: chatId ──────────────────────────────────
+            if (!activeChatId && parsed.chatId) {
+              setActiveChatId(parsed.chatId);
+              window.history.pushState(null, '', `/chat/${parsed.chatId}`);
+            }
+          }
+          // 'done' event — stream finished, nothing special to do
+        }
+      }
+    }
+  };
+
+  // ── JSON Chat Handler (Agent + Tools) ──────────────────────────────────────
+  const handleJsonChat = async (requestBody: any) => {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(requestBody),
+    });
+
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    handleJsonResponse(data);
+  };
+
+  // ── Shared JSON response handler ──────────────────────────────────────────
+  const handleJsonResponse = (data: any) => {
+    if (!activeChatId && data.chatId) {
+      setActiveChatId(data.chatId);
+      window.history.pushState(null, '', `/chat/${data.chatId}`);
+    }
+
+    const newResponses: ChatResponse[] = (data.results || []).map((r: any) => ({
+      modelId: r.id || r.modelId || 'ai',
+      text: r.text || '',
+      status: (r.status as 'success' | 'failed') || 'success',
+      type: r.type || 'llm',
+      toolName: r.toolName,
+      toolKey: r.toolKey,
+      data: r.data,
+      error: r.error,
+    }));
+
+    setChatHistory(prev => {
+      const updated = [...prev];
+      const last = updated[updated.length - 1];
+      if (last) {
+        last.responses = newResponses.length > 0
+          ? newResponses
+          : [{ modelId: selectedModelIds[0], text: '⚠️ Model failed to respond.', status: 'failed' }];
+      }
+      return updated;
+    });
+
+    // Handle project files from agent
+    const agentResult = (data.results || []).find((r: any) => r.project?.files);
+    if (agentResult?.project?.files) {
+      setProjectFiles(agentResult.project.files);
+      setProjectFramework(agentResult.project.framework || 'react');
+      if (activeTab !== 'agent') setActiveTab('agent');
+      setAgentStep('building');
     }
   };
 
