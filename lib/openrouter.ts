@@ -4,14 +4,20 @@ import { getModelById } from './models';
 // ─── Key Pools ────────────────────────────────────────────────────────────────
 
 function getFreeKey(): string | null {
-    const keys = (process.env.OPENROUTER_FREE_KEYS || process.env.OPENROUTER_API_KEY || '')
-        .split(',').map(k => k.trim()).filter(Boolean);
-    if (keys.length === 0) return null;
+    const rawKeys = process.env.OPENROUTER_FREE_KEYS || 
+                   process.env.OPENROUTER_API_KEY || 
+                   process.env.NEXT_PUBLIC_OPENROUTER_API_KEY || '';
+    
+    const keys = rawKeys.split(',').map(k => k.trim()).filter(Boolean);
+    if (keys.length === 0) {
+        console.error("[OpenRouter] CRITICAL: No API keys found in environment variables.");
+        return null;
+    }
     return keys[Math.floor(Math.random() * keys.length)];
 }
 
 function getPaidKey(): string | null {
-    return process.env.OPENROUTER_PAID_KEY || process.env.OPENROUTER_API_KEY || null;
+    return process.env.OPENROUTER_PAID_KEY || process.env.OPENROUTER_API_KEY || process.env.NEXT_PUBLIC_OPENROUTER_API_KEY || null;
 }
 
 // ─── OpenRouter Client Factory ────────────────────────────────────────────────
