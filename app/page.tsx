@@ -246,8 +246,8 @@ export default function LandingPage() {
               <h2 className="text-4xl md:text-5xl font-bold text-center mb-12 text-white">Frequently Asked Questions</h2>
               <div className="space-y-3">
                 {[
-                  { q: 'What is Universe AI?', a: 'Universe AI is a single app where you can chat with multiple premium AI models like ChatGPT, Claude, and Gemini — all in one unified place. No need to open different websites or switch tabs.' },
-                  { q: 'Do I need multiple subscriptions?', a: 'No. One Universe AI account gives you access to all available top-tier models without needing to manage separate subscriptions for OpenAI, Anthropic, or Google.' },
+                  { q: 'What is UniversalAI?', a: 'UniversalAI is a single app where you can chat with multiple premium AI models like ChatGPT, Claude, and Gemini — all in one unified place. No need to open different websites or switch tabs.' },
+                  { q: 'Do I need multiple subscriptions?', a: 'No. One UniversalAI account gives you access to all available top-tier models without needing to manage separate subscriptions for OpenAI, Anthropic, or Google.' },
                   { q: 'Which AI models are available?', a: 'You get access to GPT-4o, Claude 3.5 Sonnet, Gemini 2.0 Pro, along with open-source models like LLaMA 3, Mixtral, and Phi-3.' },
                   { q: 'Is it free to start?', a: 'Yes! The Free plan lets you start with essential models and basic features. Pro unlocks premium models, unlimited chats, all 40+ connectors, and the full AI Agent.' },
                   { q: 'How does compare mode work?', a: 'Compare Mode lets you send a single prompt to 2–3 AI models simultaneously. Answers stream side-by-side so you can pick the best response or verify facts.' },

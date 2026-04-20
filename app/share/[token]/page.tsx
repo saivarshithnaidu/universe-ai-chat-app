@@ -67,7 +67,7 @@ export default function SharePage({ params }: { params: Promise<{ token: string 
             <header className="border-b border-white/5 bg-[#121212] px-4 py-4">
                 <div className="max-w-4xl mx-auto">
                     <h1 className="text-xl font-semibold text-white">{chat.title}</h1>
-                    <p className="text-xs text-zinc-500 mt-1">Shared from Universal AI</p>
+                    <p className="text-xs text-zinc-500 mt-1">Shared from UniversalAI</p>
                 </div>
             </header>
 

@@ -6,7 +6,7 @@ import ChatInterface from "@/components/ChatInterface";
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Chat | Universal AI",
+  title: "Chat | UniversalAI",
   description: "Review and continue your conversation.",
 };
 

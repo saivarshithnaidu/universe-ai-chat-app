@@ -1,18 +1,18 @@
 import React from "react";
 
 export const metadata = {
-    title: "Privacy Policy – Universal AI",
+    title: "Privacy Policy – UniversalAI",
 };
 
 export default function PrivacyPolicy() {
     return (
         <div className="min-h-screen bg-black text-white p-6 md:p-12">
             <div className="max-w-3xl mx-auto space-y-8">
-                <h1 className="text-4xl font-bold mb-8">Privacy Policy – Universal AI</h1>
+                <h1 className="text-4xl font-bold mb-8">Privacy Policy – UniversalAI</h1>
 
                 <section className="space-y-4">
                     <p className="text-gray-300">
-                        At Universal AI, we respect your privacy and are committed to protecting your personal data.
+                        At UniversalAI, we respect your privacy and are committed to protecting your personal data.
                     </p>
                 </section>
 

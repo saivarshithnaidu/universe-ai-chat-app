@@ -1,18 +1,18 @@
 import React from "react";
 
 export const metadata = {
-    title: "Refund & Cancellation Policy – Universal AI",
+    title: "Refund & Cancellation Policy – UniversalAI",
 };
 
 export default function RefundPolicy() {
     return (
         <div className="min-h-screen bg-black text-white p-6 md:p-12">
             <div className="max-w-3xl mx-auto space-y-8">
-                <h1 className="text-4xl font-bold mb-8">Refund & Cancellation Policy – Universal AI</h1>
+                <h1 className="text-4xl font-bold mb-8">Refund & Cancellation Policy – UniversalAI</h1>
 
                 <section className="space-y-4">
                     <p className="text-gray-300">
-                        All payments made to Universal AI are final and non-refundable.
+                        All payments made to UniversalAI are final and non-refundable.
                     </p>
                     <p className="text-gray-300">
                         Access to paid features is granted immediately after successful payment.

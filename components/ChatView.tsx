@@ -105,7 +105,7 @@ export function ChatView({
             onOpenConnectors={onOpenConnectors}
           />
           <p className="text-center text-[10px] text-zinc-700 mt-2 font-medium select-none">
-            Universe AI may make mistakes. Verify important information.
+            UniversalAI may make mistakes. Verify important information.
           </p>
         </div>
       </div>

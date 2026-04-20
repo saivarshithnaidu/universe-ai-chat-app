@@ -1,63 +1,12 @@
-2026-03-30T09:28:16.231Z - getUserByAccount: google / 115670115150190111429
-2026-03-30T09:28:31.931Z - getUserByAccount: google / 115670115150190111429
-2026-03-30T09:29:02.502Z - getUserByAccount: google / 115670115150190111429
-2026-03-30T09:29:05.874Z - getUserByAccount: google / 115670115150190111429
-2026-03-30T09:29:15.870Z - getUserByAccount: google / 104269676445966447842
-2026-03-30T09:29:50.934Z - getUserByAccount: google / 113559878447881361094
-2026-03-30T09:33:42.337Z - getUserByAccount: google / 104269676445966447842
-2026-03-30T09:33:42.838Z - getUserByAccount ERROR: column a.user_id does not exist
-2026-03-30T09:33:47.279Z - getUserByAccount: google / 104269676445966447842
-2026-03-30T09:33:47.667Z - getUserByAccount ERROR: column a.user_id does not exist
-2026-03-30T09:40:04.651Z - getUserByAccount: google / 104269676445966447842
-2026-03-30T09:40:04.723Z - getUserByAccount result: not found
-2026-03-30T09:40:04.728Z - signIn: 23bq5a0532@gmail.com
-2026-03-30T09:40:04.735Z - getUserByAccount: google / 104269676445966447842
-2026-03-30T09:40:04.787Z - getUserByAccount result: not found
-2026-03-30T09:40:04.853Z - createUser: 23bq5a0532@gmail.com
-2026-03-30T09:40:04.914Z - User created: 309d5359-733d-4841-b654-17084ae8f684
-2026-03-30T09:40:04.918Z - linkAccount: google for user 309d5359-733d-4841-b654-17084ae8f684
-2026-03-30T09:40:04.978Z - Account linked successfully
-2026-03-30T09:41:56.298Z - getUserByAccount: google / 115670115150190111429
-2026-03-30T09:41:57.198Z - getUserByAccount result: not found
-2026-03-30T09:41:57.207Z - signIn: saivarshith8284@gmail.com
-2026-03-30T09:41:57.229Z - getUserByAccount: google / 115670115150190111429
-2026-03-30T09:41:57.294Z - getUserByAccount result: not found
-2026-03-30T09:41:57.352Z - createUser: saivarshith8284@gmail.com
-2026-03-30T09:41:57.414Z - User created: 248cc9e4-5601-4ca6-86ee-67aaa0bfa44f
-2026-03-30T09:41:57.433Z - linkAccount: google for user 248cc9e4-5601-4ca6-86ee-67aaa0bfa44f
-2026-03-30T09:41:57.525Z - Account linked successfully
-2026-03-30T10:35:36.715Z - getUserByAccount: google / 113559878447881361094
-2026-03-30T10:35:37.186Z - getUserByAccount result: not found
-2026-03-30T10:35:37.192Z - signIn: excsessfoodsystem@gmail.com
-2026-03-30T10:35:37.197Z - getUserByAccount: google / 113559878447881361094
-2026-03-30T10:35:37.342Z - getUserByAccount result: not found
-2026-03-30T10:35:37.696Z - createUser: excsessfoodsystem@gmail.com
-2026-03-30T10:35:37.744Z - User created: 63984863-c7b7-4185-9257-4d27080c423f
-2026-03-30T10:35:37.752Z - linkAccount: google for user 63984863-c7b7-4185-9257-4d27080c423f
-2026-03-30T10:35:37.810Z - Account linked successfully
-2026-04-06T16:39:48.722Z - getUserByAccount: google / 115670115150190111429
-2026-04-06T16:39:48.873Z - getUserByAccount result: saivarshith8284@gmail.com
-2026-04-06T16:39:48.879Z - signIn: saivarshith8284@gmail.com
-2026-04-06T16:39:48.896Z - getUserByAccount: google / 115670115150190111429
-2026-04-06T16:39:48.970Z - getUserByAccount result: saivarshith8284@gmail.com
-2026-04-06T16:47:22.071Z - getUserByAccount: google / 115670115150190111429
-2026-04-06T16:47:22.658Z - getUserByAccount result: saivarshith8284@gmail.com
-2026-04-06T16:47:22.662Z - signIn: saivarshith8284@gmail.com
-2026-04-06T16:47:22.667Z - getUserByAccount: google / 115670115150190111429
-2026-04-06T16:47:22.721Z - getUserByAccount result: saivarshith8284@gmail.com
-2026-04-14T01:51:32.093Z - getUserByAccount: google / 101278323498762321082
-2026-04-14T01:51:42.742Z - getUserByAccount ERROR: column a.user_id does not exist
-2026-04-14T01:51:42.747Z - signIn: universalaichatapp@gmail.com via google
-2026-04-14T01:51:42.755Z - getUserByAccount: google / 101278323498762321082
-2026-04-14T01:51:49.880Z - getUserByAccount ERROR: column a.user_id does not exist
-2026-04-14T01:51:56.192Z - createUser: universalaichatapp@gmail.com
-2026-04-14T01:51:56.958Z - User created: 476591ab-c4be-4e60-832d-2cf0cb976b85
-2026-04-14T01:51:56.964Z - linkAccount: google for user 476591ab-c4be-4e60-832d-2cf0cb976b85
-2026-04-14T01:51:57.687Z - linkAccount ERROR: column "user_id" of relation "accounts" does not exist
-2026-04-14T05:01:34.081Z - getUserByAccount: google / 115670115150190111429
-2026-04-14T05:01:34.514Z - getUserByAccount ERROR: column a.user_id does not exist
-2026-04-14T05:01:34.518Z - signIn: saivarshith8284@gmail.com via google
-2026-04-14T05:01:35.688Z - getUserByAccount: google / 115670115150190111429
-2026-04-14T05:01:35.755Z - getUserByAccount ERROR: column a.user_id does not exist
-2026-04-14T05:01:35.766Z - linkAccount: google for user 248cc9e4-5601-4ca6-86ee-67aaa0bfa44f
-2026-04-14T05:01:36.453Z - linkAccount ERROR: column "user_id" of relation "accounts" does not exist
+2026-04-15T03:48:19.707Z - getUserByAccount: google / 115670115150190111429
+2026-04-15T03:48:20.459Z - getUserByAccount result: saivarshith8284@gmail.com
+2026-04-15T03:48:20.464Z - signIn: saivarshith8284@gmail.com via google
+2026-04-15T03:48:20.469Z - getUserByAccount: google / 115670115150190111429
+2026-04-15T03:48:20.943Z - getUserByAccount result: saivarshith8284@gmail.com
+2026-04-15T03:48:20.956Z - Event: signIn success for saivarshith8284@gmail.com
+2026-04-20T10:09:46.531Z - getUserByAccount: google / 115670115150190111429
+2026-04-20T10:09:46.915Z - getUserByAccount result: saivarshith8284@gmail.com
+2026-04-20T10:09:46.921Z - signIn: saivarshith8284@gmail.com via google
+2026-04-20T10:09:46.925Z - getUserByAccount: google / 115670115150190111429
+2026-04-20T10:09:47.269Z - getUserByAccount result: saivarshith8284@gmail.com
+2026-04-20T10:09:47.279Z - Event: signIn success for saivarshith8284@gmail.com

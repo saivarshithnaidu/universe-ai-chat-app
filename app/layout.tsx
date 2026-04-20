@@ -6,10 +6,10 @@ import { Providers } from "@/components/Providers";
 
 export const metadata: Metadata = {
   title: {
-    template: "%s | Universe AI",
-    default: "Universe AI – Compare GPT-4o, Claude 3.5 & Gemini Pro Side-by-Side",
+    template: "%s | UniversalAI",
+    default: "UniversalAI – Compare GPT-4o, Claude 3.5 & Gemini Pro Side-by-Side",
   },
-  description: "Universe AI lets you compare GPT, Gemini, Claude and open AI models side-by-side in one powerful platform. Experience the future of AI chat.",
+  description: "UniversalAI lets you compare GPT, Gemini, Claude and open AI models side-by-side in one powerful platform. Experience the future of AI chat.",
   icons: {
     icon: "/favicon.svg",
   },
@@ -24,9 +24,9 @@ export const metadata: Metadata = {
     "OpenAI",
     "Artificial Intelligence"
   ],
-  authors: [{ name: "Universe AI" }],
-  creator: "Universe AI",
-  publisher: "Universe AI",
+  authors: [{ name: "UniversalAI" }],
+  creator: "UniversalAI",
+  publisher: "UniversalAI",
   robots: {
     index: true,
     follow: true,
@@ -36,10 +36,10 @@ export const metadata: Metadata = {
     },
   },
   openGraph: {
-    title: "Universe AI – Multi Model AI Chat Platform",
+    title: "UniversalAI – Multi Model AI Chat Platform",
     description: "Compare GPT, Gemini, Claude and open AI models side-by-side in one powerful platform.",
-    url: "https://universeai.dev",
-    siteName: "Universe AI",
+    url: "https://universalai.co.in",
+    siteName: "UniversalAI",
     type: "website",
     locale: "en_US",
     images: [
@@ -47,12 +47,12 @@ export const metadata: Metadata = {
         url: "/og-image.png",
         width: 1200,
         height: 630,
-        alt: "Universe AI - Multi Model AI Chat Platform",
+        alt: "UniversalAI - Multi Model AI Chat Platform",
       },
     ],
   },
   alternates: {
-    canonical: "https://universeai.dev",
+    canonical: "https://universalai.co.in",
   },
 };
 
