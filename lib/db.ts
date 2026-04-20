@@ -145,7 +145,10 @@ export const db = {
             EXCEPTION WHEN OTHERS THEN
                 NULL;
             END $$;`,
-            `ALTER TABLE users ADD COLUMN IF NOT EXISTS "resumeText" TEXT;`
+            `ALTER TABLE users ADD COLUMN IF NOT EXISTS "resumeText" TEXT;`,
+            `ALTER TABLE messages ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'success';`,
+            `ALTER TABLE messages ADD COLUMN IF NOT EXISTS model TEXT;`,
+            `ALTER TABLE messages ADD COLUMN IF NOT EXISTS fallback BOOLEAN DEFAULT FALSE;`
         ];
 
         for (const query of queries) {
