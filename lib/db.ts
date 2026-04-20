@@ -140,6 +140,11 @@ export const db = {
             `ALTER TABLE users ADD COLUMN IF NOT EXISTS name TEXT;`,
             `ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified TIMESTAMP;`,
             `ALTER TABLE users ADD COLUMN IF NOT EXISTS "emailVerified" TIMESTAMP;`,
+            `DO $$ BEGIN
+                IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE table_name='users' AND constraint_type='UNIQUE') THEN
+                    ALTER TABLE users ADD CONSTRAINT users_email_key UNIQUE (email);
+                END IF;
+            END $$;`,
             `ALTER TABLE users ADD COLUMN IF NOT EXISTS "resumeText" TEXT;`
         ];
 
