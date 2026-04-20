@@ -94,15 +94,7 @@ export async function callModel(
                 ],
                 max_tokens: 2048,
                 temperature: 0.7,
-            }, { 
-                 fetch: (url: any, options: any) => {
-                    return fetch(url, {
-                        ...options,
-                        //@ts-ignore
-                        agent: new (require('https').Agent)({ rejectUnauthorized: false })
-                    });
-                 }
-            } as any);
+            });
 
             const timeoutPromise = new Promise<never>((_, reject) =>
                 setTimeout(() => reject(new Error(`Timeout: ${modelId} > ${timeoutMs / 1000}s`)), timeoutMs)

@@ -28,17 +28,25 @@ const customAdapter = (pool: any) => {
     async createUser(user: any) {
       logAuth(`createUser: ${user.email}`);
       try {
+        // Fallback manual check in case UNIQUE constraint migration was skipped or failed
+        const existingRes = await pool.query('SELECT * FROM users WHERE email = $1', [user.email]);
+        if (existingRes.rows.length > 0) {
+            logAuth(`User already exists during createUser: ${user.email}`);
+            const existingUser = existingRes.rows[0];
+            return { 
+                ...existingUser, 
+                emailVerified: existingUser.email_verified || existingUser.emailVerified || null 
+            };
+        }
+
         const id = user.id || crypto.randomUUID();
         const res = await pool.query(
           `INSERT INTO users (id, name, email, image) 
            VALUES ($1, $2, $3, $4) 
-           ON CONFLICT (email) DO UPDATE SET 
-             name = COALESCE(users.name, EXCLUDED.name),
-             image = COALESCE(users.image, EXCLUDED.image)
            RETURNING *`,
           [id, user.name || null, user.email || null, user.image || null]
         );
-        logAuth(`User upserted: ${res.rows[0].id}`);
+        logAuth(`User created: ${res.rows[0].id}`);
         const newUser = res.rows[0];
         return { 
             ...newUser, 
